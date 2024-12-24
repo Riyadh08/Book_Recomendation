@@ -9,7 +9,7 @@
             <div class="left-sidebar text-center me-4">
                 <!-- Dynamically display the book cover image -->
                 <img src="{{ book.image.url }}" alt="{{ book.book_name }}" class="rounded mb-3 book-image">
-                <p><strong>Rating:</strong> 4.38 (4,592 ratings)</p>
+                <p><strong>Rating:</strong> {{ book.average_rating }} ({{ book.total_ratings }} ratings)</p>
                 <p><a href="#" class="text-primary">Edit My Activity</a></p>
             </div>
             <div class="right-content flex-grow-1">
@@ -56,32 +56,53 @@
 </div>
 
 <script>
-    let currentPage = 1;
+    const bookId = "{{ book.book_id }}";  // Pass book_id to JavaScript
+    let currentPage = 1;  // Track the current page of reviews
+    let hasNextPage = true;  // Track if there are more pages of reviews to load
 
     // Function to load reviews dynamically
     function loadReviews() {
-        fetch(`/reviews?page=${currentPage}`)
+        fetch(`/book/${bookId}/reviews?page=${currentPage}`)
             .then(response => response.json())
             .then(data => {
                 const reviewsContainer = document.getElementById('reviews');
-
+                
                 data.reviews.forEach((review) => {
                     const reviewDiv = document.createElement('div');
                     reviewDiv.className = 'review border p-3 rounded mb-3 d-flex align-items-center';
                     reviewDiv.innerHTML = `
-                        <img src="${review.profile}" alt="${review.user} Profile Picture" class="rounded-circle me-3" style="width: 50px; height: 50px;">
+                        <img src="${review.profile || 'https://via.placeholder.com/50'}" alt="${review.user}" class="rounded-circle me-3" style="width: 50px; height: 50px;">
                         <div class="review-info flex-grow-1">
                             <h4 class="mb-1">${review.user}</h4>
                             <p class="mb-1">${review.review_text}</p>
                         </div>
                         <div class="star-rating" style="--rating: ${review.rating};"></div>
                     `;
-                    reviewsContainer.appendChild(reviewDiv);
+                    reviewsContainer.insertAdjacentElement('beforeend', reviewDiv);  // Insert new reviews at the bottom
                 });
+
+                // Check if there are more reviews to load
+                hasNextPage = data.has_next;
+
+                // Hide "Load More" button if no more reviews
+                if (!hasNextPage) {
+                    document.getElementById('loadMoreBtn').style.display = 'none';
+                }
             });
     }
 
-    // Function to handle review form submission
+    // Load reviews on page load
+    loadReviews();
+
+    // Handle "Load More" button click
+    document.getElementById('loadMoreBtn').addEventListener('click', () => {
+        if (hasNextPage) {
+            currentPage++;
+            loadReviews();
+        }
+    });
+
+    // Handle form submission for review
     document.getElementById('reviewForm').addEventListener('submit', (e) => {
         e.preventDefault();
 
@@ -104,21 +125,14 @@
             if (data.success) {
                 alert('Review submitted successfully!');
                 document.getElementById('reviewForm').reset();
+                currentPage = 1; // Reset to the first page to show the new review
+                document.getElementById('reviews').innerHTML = ''; // Clear reviews container
                 loadReviews(); // Reload reviews
             } else {
                 alert('Error submitting review: ' + data.message);
             }
         });
     });
-
-    // Load more reviews button
-    document.getElementById('loadMoreBtn').addEventListener('click', () => {
-        currentPage++;
-        loadReviews();
-    });
-
-    // Initial load
-    loadReviews();
 </script>
 
 <style>

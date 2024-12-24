@@ -6,6 +6,8 @@ from datetime import datetime
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
 @login_required(login_url='signin')
 def index(request):
     return render(request, 'index.html')
@@ -166,35 +168,33 @@ def book(request, pk):
 
     return render(request, 'book_profile.html', context)
 
+
 @login_required(login_url='signin')
 def reviews_list(request, book_id):
     book = get_object_or_404(Book, pk=book_id)
-    reviews = book.reviews.order_by('-created_at')
+    reviews = book.reviews.order_by('-created_at')  # Latest first
     paginator = Paginator(reviews, 5)  # 5 reviews per page
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
 
     reviews_data = [
         {
-            'user': review.user.user_name,
-            'profile': review.user.profile_picture.url if review.user.profile_picture else 'https://via.placeholder.com/50',
-            'stars': review.rating,
-            'text': review.review_text,
+            'user': review.user_id.username,
+            'profile': review.user_id.profile_picture.url if hasattr(review.user_id, 'profile_picture') else 'https://via.placeholder.com/50',  # Profile picture
+            'rating': review.rating,
+            'review_text': review.review_text,
         }
         for review in page_obj
     ]
 
-    return JsonResponse({'reviews': reviews_data})
+    return JsonResponse({
+        'reviews': reviews_data,
+        'has_next': page_obj.has_next(),
+    })
 
 
-from django.views.decorators.csrf import csrf_exempt
-import json
 
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-import json
-from .models import Book, Review  # Adjust according to your project structure
+
 
 @login_required(login_url='signin')
 @csrf_exempt
