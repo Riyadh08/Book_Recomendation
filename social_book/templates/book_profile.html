@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Books{% endblock title %}
+
+{% block body %}
+<div class="container mt-5">
+    <div class="container">
+        <div class="d-flex justify-content-center">
+            <div class="left-sidebar text-center me-4">
+                <!-- Dynamically display the book cover image with a smaller size -->
+                <img src="{{ book.image.url }}" alt="{{ book.book_name }}" class="rounded mb-3 book-image">
+                <p><strong>Rating:</strong> 4.38 (4,592 ratings)</p>
+                <p><a href="#" class="text-primary">Edit My Activity</a></p>
+            </div>
+            <div class="right-content flex-grow-1">
+                <!-- Dynamically display the book title -->
+                <h1 class="mb-3">{{ book.book_name }}</h1>
+
+                <!-- Dynamically display the author's name -->
+                <p><strong>Author:</strong> {{ book.author_id.name }}</p>
+
+                <!-- Dynamically display the rating (if available) -->
+                <p><strong>Rating:</strong> 4.38 (4,592 ratings)</p>
+
+                <!-- Dynamically display the book's genres -->
+                <p><strong>Genres:</strong> {{ book.genre }}</p>
+
+                <h2 class="mt-4">Ratings & Reviews</h2>
+                <div class="reviews-container" id="reviews">
+                    <!-- Reviews will be loaded here dynamically -->
+                </div>
+                <div class="load-more mt-4 text-center">
+                    <button id="loadMoreBtn" class="btn btn-primary">Load More Reviews</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentPage = 1;
+
+    function loadReviews() {
+        // Simulate fetching reviews from a server
+        const reviews = [
+            { user: 'User 1', stars: 5, profile: 'https://via.placeholder.com/50', review: 'Great book!' },
+            { user: 'User 2', stars: 4, profile: 'https://via.placeholder.com/50', review: 'Really enjoyed it.' },
+            { user: 'User 3', stars: 3, profile: 'https://via.placeholder.com/50', review: 'It was okay.' },
+            { user: 'User 4', stars: 5, profile: 'https://via.placeholder.com/50', review: 'Amazing story.' },
+            { user: 'User 5', stars: 4, profile: 'https://via.placeholder.com/50', review: 'Well written.' },
+        ];
+
+        const reviewsContainer = document.getElementById('reviews');
+
+        reviews.forEach((review) => {
+            const reviewDiv = document.createElement('div');
+            reviewDiv.className = 'review border p-3 rounded mb-3 d-flex align-items-center';
+            reviewDiv.innerHTML = `
+                <img src="${review.profile}" alt="${review.user} Profile Picture" class="rounded-circle me-3" style="width: 50px; height: 50px;">
+                <div class="review-info flex-grow-1">
+                    <h4 class="mb-1">${review.user}</h4>
+                    <p class="mb-1">${review.review}</p>
+                </div>
+                <div class="stars text-warning">${'★'.repeat(review.stars)}${'☆'.repeat(5 - review.stars)}</div>
+            `;
+            reviewsContainer.appendChild(reviewDiv);
+        });
+    }
+
+    document.getElementById('loadMoreBtn').addEventListener('click', () => {
+        currentPage++;
+        loadReviews();
+    });
+
+    // Initial load
+    loadReviews();
+</script>
+
+<style>
+    .book-image {
+        width: 200px;   /* Adjust the width of the book cover image */
+        height: 250px;   /* Maintain the aspect ratio */
+        border-radius: 8px;  /* Optional: rounded corners for the image */
+        margin-bottom: 20px; /* Adjust margin if needed */
+    }
+</style>
+
+{% endblock body %}

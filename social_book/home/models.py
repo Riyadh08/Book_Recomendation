@@ -2,13 +2,13 @@ from django.db import models
 from django.contrib.auth.hashers import make_password
 # Custom User Model
 
-class User(models.Model):
+class Cuser(models.Model):
     user_id = models.AutoField(primary_key=True)  # Auto-incrementing primary key
-    user_name = models.CharField(max_length=255)
+    user_name = models.CharField(max_length=255,unique=True)
     user_date_of_birth = models.DateField()
     user_gender = models.CharField(max_length=10)  # Example: 'Male', 'Female', 'Other'
     user_location = models.CharField(max_length=255)
-    user_image = models.ImageField(upload_to='user_images', default='default_user_image.jpg')
+    user_image = models.ImageField(upload_to='user_images', default='blank-profile-picture.png')
     email = models.EmailField(max_length=255, unique=True)
     password = models.CharField(max_length=255)  # Plain password field (will be hashed before saving)
 
@@ -34,7 +34,7 @@ class Author(models.Model):
     name = models.CharField(max_length=255)  # Author's name
     bio = models.TextField(blank=True, null=True)  # Author's biography (optional)
     date_of_birth = models.DateField(blank=True, null=True)  # Author's date of birth (optional)
-    author_image = models.ImageField(upload_to='author_images', default='default_author_image.jpg')
+    author_image = models.ImageField(upload_to='author_images', default='blank-profile-picture.png')
 
     def __str__(self):
         return self.name
@@ -46,7 +46,7 @@ class Book(models.Model):
     book_name = models.CharField(max_length=255)  # Book name
     author_id = models.ForeignKey(Author, on_delete=models.CASCADE)  # Foreign key to Author model
     genre = models.CharField(max_length=100, default='Unknown')  # Genre of the book
-    image = models.ImageField(upload_to='book_images', default='default_book_image.jpg')  # Image of the book
+    image = models.ImageField(upload_to='book_images', default='blank-profile-picture.png')  # Image of the book
 
     def __str__(self):
         return self.book_name

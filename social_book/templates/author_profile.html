@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Author{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="author-profile">
+        <!-- Left Sidebar (Author Image) -->
+        <div class="sidebar">
+            <img src="{{ author.author_image.url }}" alt="Author Image">
+            <button class="follow-button">Follow</button>
+        </div>
+
+        <!-- Main Content (Author Information and Books) -->
+        <div class="main-content">
+            <div class="section" id="bio">
+                <h2>{{ author.name }}</h2>
+                <p>Born: {{ author.date_of_birth }}</p>
+                <p>Genre: {{ author.genre }}</p>
+                <p>Notable Works: {{ author.notable_works }}</p>
+                <p>{{ author.biography }}</p>
+            </div>
+
+            <div class="section" id="books">
+                <h2>Books</h2>
+                <div class="books">
+                    {% for book in books %}
+                        <div class="book lazy-content">
+                            <img src="{{ book.cover_image_url }}" alt="Book Cover">
+                            <div class="book-title">{{ book.title }}</div>
+                            <div class="book-rating">Rating: {{ book.rating }}</div>
+                        </div>
+                    {% empty %}
+                        <p>No books found for this author.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const booksContainer = document.querySelector(".books");
+
+        // Simulate lazy loading of books
+        const books = [
+            { title: "Book 1", rating: "4.5", image: "placeholder-book.jpg" },
+            { title: "Book 2", rating: "4.0", image: "placeholder-book.jpg" },
+            { title: "Book 3", rating: "4.2", image: "placeholder-book.jpg" },
+            { title: "Book 4", rating: "4.8", image: "placeholder-book.jpg" },
+        ];
+
+        books.forEach(book => {
+            const bookElement = document.createElement("div");
+            bookElement.classList.add("book");
+            bookElement.innerHTML = `
+                <img src="${book.image}" alt="${book.title}">
+                <div class="book-title">${book.title}</div>
+                <div class="book-rating">Rating: ${book.rating}</div>
+            `;
+            booksContainer.appendChild(bookElement);
+        });
+
+        // Remove lazy-content opacity when loaded
+        booksContainer.querySelectorAll(".lazy-content").forEach(book => {
+            book.classList.remove("lazy-content");
+        });
+    });
+</script>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f9f9f9;
+    }
+
+    .container {
+        display: flex;
+        justify-content: center;
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .author-profile {
+        display: flex;
+        width: 100%;
+    }
+
+    .sidebar {
+        width: 300px;
+        padding: 20px;
+        box-sizing: border-box;
+        background-color: #fff;
+        border-right: 1px solid #ddd;
+        text-align: center;
+    }
+
+    .sidebar img {
+        width: 70%;
+        height: 60%;
+        border-radius: 10px;
+    }
+
+    .follow-button {
+        display: block;
+        width: 100%;
+        padding: 10px;
+        text-align: center;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        margin-top: 50px;
+        cursor: pointer;
+    }
+
+    .follow-button:hover {
+        background-color: #0056b3;
+    }
+
+    .main-content {
+        flex-grow: 1;
+        padding: 20px;
+        background-color: #fff;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .section {
+        margin-bottom: 20px;
+    }
+
+    .section h2 {
+        font-size: 20px;
+        margin-bottom: 10px;
+    }
+
+    .books {
+        display: flex;
+        flex-wrap: nowrap; /* Prevent wrapping */
+        overflow-x: auto; /* Horizontal scrolling */
+        gap: 10px;
+        padding-bottom: 10px;
+    }
+
+    .book {
+        width: 200px; /* Width of each book */
+        background-color: #f4f4f4;
+        padding: 10px;
+        border-radius: 5px;
+        text-align: center;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .book img {
+        max-width: 100%;
+        border-radius: 5px;
+    }
+
+    .book-title {
+        margin-top: 10px;
+        font-size: 14px;
+        font-weight: bold;
+    }
+
+    .book-rating {
+        margin-top: 5px;
+        color: #888;
+    }
+</style>
+
+{% endblock %}
