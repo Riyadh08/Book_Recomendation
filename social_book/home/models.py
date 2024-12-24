@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.hashers import make_password
+from django.contrib.auth.models import User
 # Custom User Model
 
 class Cuser(models.Model):
@@ -51,4 +52,13 @@ class Book(models.Model):
     def __str__(self):
         return self.book_name
     
+class Review(models.Model):
+    review_id = models.AutoField(primary_key=True)
+    book_id = models.ForeignKey(Book, related_name='reviews', on_delete=models.CASCADE)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)  # Corrected to 'User' from 'auth.User'
+    review_text = models.TextField()
+    rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)])  # Rating from 1 to 5
+    created_at = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return f'Review for {self.book.book_name} by {self.user.user_name}'

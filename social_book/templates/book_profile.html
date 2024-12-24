@@ -7,7 +7,7 @@
     <div class="container">
         <div class="d-flex justify-content-center">
             <div class="left-sidebar text-center me-4">
-                <!-- Dynamically display the book cover image with a smaller size -->
+                <!-- Dynamically display the book cover image -->
                 <img src="{{ book.image.url }}" alt="{{ book.book_name }}" class="rounded mb-3 book-image">
                 <p><strong>Rating:</strong> 4.38 (4,592 ratings)</p>
                 <p><a href="#" class="text-primary">Edit My Activity</a></p>
@@ -19,12 +19,30 @@
                 <!-- Dynamically display the author's name -->
                 <p><strong>Author:</strong> {{ book.author_id.name }}</p>
 
-                <!-- Dynamically display the rating (if available) -->
-                <p><strong>Rating:</strong> 4.38 (4,592 ratings)</p>
-
                 <!-- Dynamically display the book's genres -->
                 <p><strong>Genres:</strong> {{ book.genre }}</p>
 
+                <!-- Add Review Section -->
+                <h2 class="mt-4">Add Your Review</h2>
+                <form id="reviewForm" class="mb-4">
+                    <div class="mb-3">
+                        <label for="reviewText" class="form-label">Your Review</label>
+                        <textarea id="reviewText" class="form-control" rows="4" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="rating" class="form-label">Rating</label>
+                        <select id="rating" class="form-select" required>
+                            <option value="5">★★★★★ - Excellent</option>
+                            <option value="4">★★★★ - Very Good</option>
+                            <option value="3">★★★ - Good</option>
+                            <option value="2">★★ - Fair</option>
+                            <option value="1">★ - Poor</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-success">Submit Review</button>
+                </form>
+
+                <!-- Ratings and Reviews Section -->
                 <h2 class="mt-4">Ratings & Reviews</h2>
                 <div class="reviews-container" id="reviews">
                     <!-- Reviews will be loaded here dynamically -->
@@ -40,33 +58,60 @@
 <script>
     let currentPage = 1;
 
+    // Function to load reviews dynamically
     function loadReviews() {
-        // Simulate fetching reviews from a server
-        const reviews = [
-            { user: 'User 1', stars: 5, profile: 'https://via.placeholder.com/50', review: 'Great book!' },
-            { user: 'User 2', stars: 4, profile: 'https://via.placeholder.com/50', review: 'Really enjoyed it.' },
-            { user: 'User 3', stars: 3, profile: 'https://via.placeholder.com/50', review: 'It was okay.' },
-            { user: 'User 4', stars: 5, profile: 'https://via.placeholder.com/50', review: 'Amazing story.' },
-            { user: 'User 5', stars: 4, profile: 'https://via.placeholder.com/50', review: 'Well written.' },
-        ];
+        fetch(`/reviews?page=${currentPage}`)
+            .then(response => response.json())
+            .then(data => {
+                const reviewsContainer = document.getElementById('reviews');
 
-        const reviewsContainer = document.getElementById('reviews');
-
-        reviews.forEach((review) => {
-            const reviewDiv = document.createElement('div');
-            reviewDiv.className = 'review border p-3 rounded mb-3 d-flex align-items-center';
-            reviewDiv.innerHTML = `
-                <img src="${review.profile}" alt="${review.user} Profile Picture" class="rounded-circle me-3" style="width: 50px; height: 50px;">
-                <div class="review-info flex-grow-1">
-                    <h4 class="mb-1">${review.user}</h4>
-                    <p class="mb-1">${review.review}</p>
-                </div>
-                <div class="stars text-warning">${'★'.repeat(review.stars)}${'☆'.repeat(5 - review.stars)}</div>
-            `;
-            reviewsContainer.appendChild(reviewDiv);
-        });
+                data.reviews.forEach((review) => {
+                    const reviewDiv = document.createElement('div');
+                    reviewDiv.className = 'review border p-3 rounded mb-3 d-flex align-items-center';
+                    reviewDiv.innerHTML = `
+                        <img src="${review.profile}" alt="${review.user} Profile Picture" class="rounded-circle me-3" style="width: 50px; height: 50px;">
+                        <div class="review-info flex-grow-1">
+                            <h4 class="mb-1">${review.user}</h4>
+                            <p class="mb-1">${review.review_text}</p>
+                        </div>
+                        <div class="star-rating" style="--rating: ${review.rating};"></div>
+                    `;
+                    reviewsContainer.appendChild(reviewDiv);
+                });
+            });
     }
 
+    // Function to handle review form submission
+    document.getElementById('reviewForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const reviewText = document.getElementById('reviewText').value;
+        const rating = document.getElementById('rating').value;
+
+        fetch(`/submit-review/{{ book.book_id }}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify({
+                review: reviewText,
+                rating: rating,
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Review submitted successfully!');
+                document.getElementById('reviewForm').reset();
+                loadReviews(); // Reload reviews
+            } else {
+                alert('Error submitting review: ' + data.message);
+            }
+        });
+    });
+
+    // Load more reviews button
     document.getElementById('loadMoreBtn').addEventListener('click', () => {
         currentPage++;
         loadReviews();
@@ -78,10 +123,26 @@
 
 <style>
     .book-image {
-        width: 200px;   /* Adjust the width of the book cover image */
-        height: 250px;   /* Maintain the aspect ratio */
-        border-radius: 8px;  /* Optional: rounded corners for the image */
-        margin-bottom: 20px; /* Adjust margin if needed */
+        width: 200px;
+        height: 250px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .star-rating {
+        display: inline-block;
+        font-size: 20px;
+        color: #ccc;
+        position: relative;
+    }
+
+    .star-rating::before {
+        content: "★★★★★";
+        color: #ffcc00;
+        position: absolute;
+        overflow: hidden;
+        width: calc(var(--rating) * 20%);
+        white-space: nowrap;
     }
 </style>
 

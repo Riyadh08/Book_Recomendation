@@ -1,9 +1,11 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages, auth
-from .models import Cuser,Book,Author
+from .models import Cuser,Book,Author,Review
 from django.contrib.auth.decorators import login_required
 from datetime import datetime
 from django.contrib.auth.models import User
+from django.core.paginator import Paginator
+from django.http import JsonResponse
 @login_required(login_url='signin')
 def index(request):
     return render(request, 'index.html')
@@ -116,13 +118,13 @@ def search(request):
 
 
 
-@login_required(login_url='signin')
-def book(request, pk):
-    # Get the book by its primary key (pk)
-    book = get_object_or_404(Book, pk=pk)
+# @login_required(login_url='signin')
+# def book(request, pk):
+#     # Get the book by its primary key (pk)
+#     book = get_object_or_404(Book, pk=pk)
 
-    # Render the book_profile.html template with the book data
-    return render(request, 'book_profile.html', {'book': book})
+#     # Render the book_profile.html template with the book data
+#     return render(request, 'book_profile.html', {'book': book})
 
 
 
@@ -142,3 +144,91 @@ def profile(request):
     }
 
     return render(request, 'profile.html', context)
+
+@login_required(login_url='signin')
+def book(request, pk):
+    book = get_object_or_404(Book, pk=pk)
+
+    # Get the most recent review
+    recent_review = book.reviews.order_by('-created_at').first()
+
+    # Paginate all reviews (5 per page)
+    all_reviews = book.reviews.order_by('-created_at')
+    paginator = Paginator(all_reviews, 5)
+    page_number = request.GET.get('page', 1)
+    reviews = paginator.get_page(page_number)
+
+    context = {
+        'book': book,
+        'recent_review': recent_review,
+        'reviews': reviews,
+    }
+
+    return render(request, 'book_profile.html', context)
+
+@login_required(login_url='signin')
+def reviews_list(request, book_id):
+    book = get_object_or_404(Book, pk=book_id)
+    reviews = book.reviews.order_by('-created_at')
+    paginator = Paginator(reviews, 5)  # 5 reviews per page
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    reviews_data = [
+        {
+            'user': review.user.user_name,
+            'profile': review.user.profile_picture.url if review.user.profile_picture else 'https://via.placeholder.com/50',
+            'stars': review.rating,
+            'text': review.review_text,
+        }
+        for review in page_obj
+    ]
+
+    return JsonResponse({'reviews': reviews_data})
+
+
+from django.views.decorators.csrf import csrf_exempt
+import json
+
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
+from .models import Book, Review  # Adjust according to your project structure
+
+@login_required(login_url='signin')
+@csrf_exempt
+def submit_review(request, book_id):
+    if request.method == "POST":
+        try:
+            # Parse the JSON data from the request
+            data = json.loads(request.body)
+            review_text = data.get('review')
+            rating = data.get('rating')
+
+            # Validate the input
+            if not review_text or not rating:
+                return JsonResponse({'success': False, 'message': 'Review and rating are required.'}, status=400)
+
+            # Fetch the book object
+            try:
+                book = Book.objects.get(pk=book_id)
+            except Book.DoesNotExist:
+                return JsonResponse({'success': False, 'message': 'Book not found.'}, status=404)
+
+            # Fetch the current authenticated user
+            user = request.user  # `request.user` will give you the currently logged-in user
+
+            # Create the review
+            review = Review.objects.create(
+                book_id=book,  # Correct foreign key assignment for book
+                user_id=user,  # Correct foreign key assignment for user
+                review_text=review_text,
+                rating=int(rating)
+            )
+
+            return JsonResponse({'success': True, 'message': 'Review submitted successfully!'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+    else:
+        return JsonResponse({'success': False, 'message': 'Invalid request method.'}, status=405)
