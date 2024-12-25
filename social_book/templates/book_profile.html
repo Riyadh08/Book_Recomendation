@@ -9,8 +9,9 @@
             <div class="left-sidebar text-center me-4">
                 <!-- Dynamically display the book cover image -->
                 <img src="{{ book.image.url }}" alt="{{ book.book_name }}" class="rounded mb-3 book-image">
-                <p><strong>Rating:</strong> {{ book.average_rating }} ({{ book.total_ratings }} ratings)</p>
-                <p><a href="#" class="text-primary">Edit My Activity</a></p>
+                <p><strong>Rating:</strong> {{ book.average_rating|floatformat:1 }} ({{ book.total_ratings }} ratings)</p>
+                {% comment %} <p><strong>Rating:</strong> {{ book.average_rating }} ({{ book.total_ratings }} ratings)</p> {% endcomment %}
+                {% comment %} <p><a href="#" class="text-primary">Edit My Activity</a></p> {% endcomment %}
             </div>
             <div class="right-content flex-grow-1">
                 <!-- Dynamically display the book title -->
@@ -71,7 +72,7 @@
                     const reviewDiv = document.createElement('div');
                     reviewDiv.className = 'review border p-3 rounded mb-3 d-flex align-items-center';
                     reviewDiv.innerHTML = `
-                        <img src="${review.profile || 'https://via.placeholder.com/50'}" alt="${review.user}" class="rounded-circle me-3" style="width: 50px; height: 50px;">
+                        <img src="${review.profile || '/media/blank-profile-picture.png'}" alt="${review.user}" class="rounded-circle me-3" style="width: 50px; height: 50px;">
                         <div class="review-info flex-grow-1">
                             <h4 class="mb-1">${review.user}</h4>
                             <p class="mb-1">${review.review_text}</p>
@@ -148,16 +149,25 @@
         font-size: 20px;
         color: #ccc;
         position: relative;
+        unicode-bidi: bidi-override;
+        direction: rtl;
     }
-
+    
     .star-rating::before {
         content: "★★★★★";
-        color: #ffcc00;
+        color: #ccc; /* Base color for stars */
+    }
+    
+    .star-rating::after {
+        content: "★★★★★";
+        color: #ffcc00; /* Filled stars color */
         position: absolute;
+        top: 0;
+        left: 0;
         overflow: hidden;
         width: calc(var(--rating) * 20%);
-        white-space: nowrap;
     }
+    
 </style>
 
 {% endblock body %}

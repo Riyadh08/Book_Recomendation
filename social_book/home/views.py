@@ -12,10 +12,16 @@ import json
 def index(request):
     return render(request, 'index.html')
 
+from django.shortcuts import render, redirect
+from django.contrib import messages, auth
+from django.contrib.auth.models import User
+from .models import Cuser
+from datetime import datetime
+
 def signup(request):
     if request.method == 'POST':
         # Collect form data
-        user_name = request.POST['user_name']  # Field name matches your model
+        user_name = request.POST['user_name']
         email = request.POST['email']
         password1 = request.POST['password1']
         password2 = request.POST['password2']
@@ -45,11 +51,18 @@ def signup(request):
             return redirect('signup')
 
         # Create the User object
-        user = Cuser(user_name=user_name, email=email, user_date_of_birth=dob, user_gender=gender, user_location=location, user_image=user_image)
-        user.set_password(password1)  # Hash the password before saving
-        user.save()
-        user2 = User.objects.create_user(username=user_name, email=email, password=password1)
-        user2.save()
+        user = User.objects.create_user(username=user_name, email=email, password=password1)
+        
+        # Create the Cuser object and link it to the User
+        cuser = Cuser(
+            user=user,  # Link the Cuser to the User object
+            user_date_of_birth=dob,
+            user_gender=gender,
+            user_location=location,
+            user_image=user_image
+        )
+        cuser.save()
+
         # Authenticate and log the user in
         user_login = auth.authenticate(username=user_name, password=password1)
         if user_login is not None:
@@ -58,6 +71,7 @@ def signup(request):
 
     else:
         return render(request, 'signup.html')
+
 
 def signin(request):
     if request.method == 'POST':
@@ -83,9 +97,9 @@ def logout(request):
 
 
 
-@login_required(login_url='signin')
-def profile(request,pk):
-    return render(request, 'profile.html')
+# @login_required(login_url='signin')
+# def profile(request,pk):
+#     return render(request, 'profile.html')
 
 
 
@@ -119,17 +133,6 @@ def search(request):
 
 
 
-
-# @login_required(login_url='signin')
-# def book(request, pk):
-#     # Get the book by its primary key (pk)
-#     book = get_object_or_404(Book, pk=pk)
-
-#     # Render the book_profile.html template with the book data
-#     return render(request, 'book_profile.html', {'book': book})
-
-
-
 @login_required(login_url='signin')
 def author(request,pk):
     author = get_object_or_404(Author, pk=pk)
@@ -139,7 +142,7 @@ def author(request,pk):
 def profile(request):
     user = request.user  # Get the current logged-in user
     # Use get_object_or_404 to avoid errors if Cuser profile does not exist
-    profile = get_object_or_404(Cuser, user_name=user.username)
+    profile = get_object_or_404(Cuser, user__username=user.username)
 
     context = {
         'profile': profile  # Pass the user profile to the template
@@ -164,6 +167,8 @@ def book(request, pk):
         'book': book,
         'recent_review': recent_review,
         'reviews': reviews,
+        'average_rating': book.average_rating(),
+        'total_ratings': book.total_ratings(),
     }
 
     return render(request, 'book_profile.html', context)
@@ -178,14 +183,15 @@ def reviews_list(request, book_id):
     page_obj = paginator.get_page(page_number)
 
     reviews_data = [
-        {
-            'user': review.user_id.username,
-            'profile': review.user_id.profile_picture.url if hasattr(review.user_id, 'profile_picture') else 'https://via.placeholder.com/50',  # Profile picture
-            'rating': review.rating,
-            'review_text': review.review_text,
-        }
-        for review in page_obj
+    {
+        'user': review.user_id.username,
+        'profile': review.user_id.cuser.user_image.url if hasattr(review.user_id, 'cuser') and review.user_id.cuser.user_image else '/media/blank-profile-picture.png',
+        'rating': review.rating,
+        'review_text': review.review_text,
+    }
+    for review in page_obj
     ]
+
 
     return JsonResponse({
         'reviews': reviews_data,

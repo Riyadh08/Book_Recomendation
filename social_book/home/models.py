@@ -1,29 +1,29 @@
 from django.db import models
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
+from django.db.models import Avg, Count
 # Custom User Model
 
+from django.contrib.auth.models import User
+
 class Cuser(models.Model):
-    user_id = models.AutoField(primary_key=True)  # Auto-incrementing primary key
-    user_name = models.CharField(max_length=255,unique=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="cuser", primary_key=True)
     user_date_of_birth = models.DateField()
     user_gender = models.CharField(max_length=10)  # Example: 'Male', 'Female', 'Other'
     user_location = models.CharField(max_length=255)
     user_image = models.ImageField(upload_to='user_images', default='blank-profile-picture.png')
     email = models.EmailField(max_length=255, unique=True)
-    password = models.CharField(max_length=255)  # Plain password field (will be hashed before saving)
+    password = models.CharField(max_length=255)
 
     def set_password(self, raw_password):
-        """Hashes the password before saving it to the database."""
-        self.password = make_password(raw_password)  # Hash the password before storing it
+        self.password = make_password(raw_password)
 
     def check_password(self, raw_password):
-        """Checks if the entered password matches the stored hashed password."""
         from django.contrib.auth.hashers import check_password
-        return check_password(raw_password, self.password)  # Verify the password
+        return check_password(raw_password, self.password)
 
     def __str__(self):
-        return self.user_name
+        return self.user.username
 
 
 # Profile Model
@@ -48,6 +48,12 @@ class Book(models.Model):
     author_id = models.ForeignKey(Author, on_delete=models.CASCADE)  # Foreign key to Author model
     genre = models.CharField(max_length=100, default='Unknown')  # Genre of the book
     image = models.ImageField(upload_to='book_images', default='blank-profile-picture.png')  # Image of the book
+
+    def average_rating(self):
+        return self.reviews.aggregate(average=Avg('rating'))['average'] or 0
+
+    def total_ratings(self):
+        return self.reviews.count()
 
     def __str__(self):
         return self.book_name
