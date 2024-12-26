@@ -103,34 +103,49 @@ def logout(request):
 
 
 
+from django.db.models import Avg, Q
+from django.core.paginator import Paginator
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+
 @login_required(login_url='signin')
 def search(request):
-    results = None
-    if request.method == 'POST':
-        # Get search parameters
-        book_name = request.POST.get('book_name', '').strip()
-        author_name = request.POST.get('author', '').strip()
-        genre = request.POST.get('genre', '').strip()
+    results = Book.objects.all()
 
-        # Perform the query
-        results = Book.objects.all()
+    # Get search parameters
+    book_name = request.GET.get('book_name', '').strip()
+    author_name = request.GET.get('author', '').strip()
+    genre = request.GET.get('genre', '').strip()
 
-        if book_name:
-            results = results.filter(book_name__icontains=book_name)
+    query = Q()
+    if book_name:
+        query &= Q(book_name__icontains=book_name)
+    if author_name:
+        query &= Q(author_id__name__icontains=author_name)
+    if genre:
+        query &= Q(genre__icontains=genre)
 
-        if author_name:
-            results = results.filter(author_id__name__icontains=author_name)
+    results = results.filter(query).annotate(avg_rating=Avg('reviews__rating')).order_by('-avg_rating')
 
-        if genre:
-            # Handle comma-separated genres
-            search_genres = [g.strip().lower() for g in genre.split(',')]
-            for g in search_genres:
-                results = results.filter(genre__icontains=g)
+    paginator = Paginator(results, 5)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
 
-        if not results.exists():
-            results = None
-    return render(request, 'search.html', {'results': results})
+    if request.is_ajax():
+        books_data = [{
+            'book_id': book.pk,
+            'book_name': book.book_name,
+            'image': book.image.url if book.image else '',
+            'author_id': book.author_id.pk,
+            'author_name': book.author_id.name,
+            'genre': book.genre,
+            'avg_rating': book.avg_rating or 0,
+            'total_ratings': book.reviews.count(),
+        } for book in page_obj]
+        return JsonResponse({'books': books_data, 'has_next': page_obj.has_next()})
 
+    return render(request, 'search.html', {'results': page_obj})
 
 
 @login_required(login_url='signin')
@@ -152,6 +167,7 @@ def profile(request):
 
 @login_required(login_url='signin')
 def book(request, pk):
+    print(f"Rendering book profile for book ID: {pk}")
     book = get_object_or_404(Book, pk=pk)
 
     # Get the most recent review
