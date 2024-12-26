@@ -24,11 +24,12 @@
             <div class="section" id="books">
                 <h2>Books</h2>
                 <div id="books-container">
-                    <!-- Initially load a few books -->
-                    {% for book in books|slice:":4" %}
+                    {% for book in books %}
                         <div class="book lazy-content">
                             <img src="{{ book.image.url }}" alt="Book Cover">
-                            <div class="book-title">{{ book.book_name }}</div>
+                            <div class="book-title">
+                                <a href="{% url 'book' book.pk %}">{{ book.book_name }}</a>
+                            </div>
                             <div class="book-rating">Rating: {{ book.average_rating }}</div>
                         </div>
                     {% endfor %}
@@ -40,40 +41,42 @@
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", () => {
-        let currentPage = 1;
-        const loadMoreButton = document.getElementById("load-more");
-        const booksContainer = document.getElementById("books-container");
+    let currentPage = 1;
+    let hasNextPage = true;
 
-        loadMoreButton.addEventListener("click", () => {
-            currentPage += 1;
+    function loadBooks() {
+        fetch(`/author/{{ author.pk }}/load-more-books/?page=${currentPage}`, {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const booksContainer = document.getElementById('books-container');
+            data.books.forEach(book => {
+                const bookElement = document.createElement('div');
+                bookElement.classList.add('book');
+                bookElement.innerHTML = `
+                    <img src="${book.image}" alt="${book.title}">
+                    <div class="book-title">
+                        <a href="${book.url}">${book.title}</a>
+                    </div>
+                    <div class="book-rating">Rating: ${book.rating}</div>
+                `;
+                booksContainer.appendChild(bookElement);
+            });
+            hasNextPage = data.has_next;
+            if (!hasNextPage) {
+                document.getElementById('load-more').style.display = 'none';
+            }
+        })
+        .catch(error => console.error('Error loading more books:', error));
+    }
 
-            // Fetch more books via AJAX (simulated here with a timeout)
-            setTimeout(() => {
-                // Simulate adding more books
-                const moreBooks = [
-                    { title: "Book 5", rating: "4.3", image: "placeholder-book.jpg" },
-                    { title: "Book 6", rating: "4.7", image: "placeholder-book.jpg" },
-                    // Add more books as needed
-                ];
-
-                moreBooks.forEach(book => {
-                    const bookElement = document.createElement("div");
-                    bookElement.classList.add("book");
-                    bookElement.innerHTML = `
-                        <img src="${book.image}" alt="${book.title}">
-                        <div class="book-title">${book.title}</div>
-                        <div class="book-rating">Rating: ${book.rating}</div>
-                    `;
-                    booksContainer.appendChild(bookElement);
-                });
-
-                // Hide the button if there are no more books to load (simulated condition)
-                if (currentPage >= 3) {
-                    loadMoreButton.style.display = "none";
-                }
-            }, 1000);
-        });
+    document.getElementById('load-more').addEventListener('click', () => {
+        if (hasNextPage) {
+            currentPage++;
+            loadBooks();
+        }
     });
 </script>
 
@@ -176,6 +179,15 @@
         font-weight: bold;
         flex-grow: 1; /* Take remaining space */
         text-align: left;
+    }
+
+    .book-title a {
+        text-decoration: none;
+        color: #007bff;
+    }
+
+    .book-title a:hover {
+        text-decoration: underline;
     }
 
     .book-rating {

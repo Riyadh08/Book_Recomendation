@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 from django.db.models import Avg, Count
+from django.urls import reverse
 # Custom User Model
 
 from django.contrib.auth.models import User
@@ -54,6 +55,9 @@ class Book(models.Model):
 
     def total_ratings(self):
         return self.reviews.count()
+    
+    def get_absolute_url(self): 
+        return reverse('book', args=[self.pk])
 
     def __str__(self):
         return self.book_name

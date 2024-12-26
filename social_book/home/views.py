@@ -140,15 +140,36 @@ def search(request):
     return render(request, 'search.html', {'results': page_obj})
 
 
-from django.shortcuts import get_object_or_404, render
+from django.core.paginator import Paginator
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.contrib.auth.decorators import login_required
-from .models import Author, Book
 
 @login_required(login_url='signin')
 def author(request, pk):
     author = get_object_or_404(Author, pk=pk)
     books = Book.objects.filter(author_id=author).annotate(average_rating=Avg('reviews__rating')).order_by('-average_rating')
-    return render(request, 'author_profile.html', {'author': author, 'books': books})
+    return render(request, 'author_profile.html', {'author': author, 'books': books[:4]})
+
+@login_required(login_url='signin')
+def load_more_books(request, pk):
+    author = get_object_or_404(Author, pk=pk)
+    page = int(request.GET.get('page', 1))
+    books = Book.objects.filter(author_id=author).annotate(average_rating=Avg('reviews__rating')).order_by('-average_rating')
+    
+    paginator = Paginator(books, 4)  # 4 books per page
+    books_page = paginator.page(page)
+    
+    books_data = []
+    for book in books_page:
+        books_data.append({
+            'title': book.book_name,
+            'rating': book.average_rating,
+            'image': book.image.url,
+            'url': book.get_absolute_url()
+        })
+    
+    return JsonResponse({'books': books_data, 'has_next': books_page.has_next()})
 
 
 
