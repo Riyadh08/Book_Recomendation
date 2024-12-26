@@ -8,15 +8,11 @@ from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
+from django.db.models import Avg, Q
+
 @login_required(login_url='signin')
 def index(request):
     return render(request, 'index.html')
-
-from django.shortcuts import render, redirect
-from django.contrib import messages, auth
-from django.contrib.auth.models import User
-from .models import Cuser
-from datetime import datetime
 
 def signup(request):
     if request.method == 'POST':
@@ -88,6 +84,8 @@ def signin(request):
             return redirect('signin')
     else:
         return render(request, 'signin.html')
+    
+
 
 @login_required(login_url='signin')
 def logout(request):
@@ -102,12 +100,6 @@ def logout(request):
 #     return render(request, 'profile.html')
 
 
-
-from django.db.models import Avg, Q
-from django.core.paginator import Paginator
-from django.shortcuts import render
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
 
 @login_required(login_url='signin')
 def search(request):
@@ -148,10 +140,17 @@ def search(request):
     return render(request, 'search.html', {'results': page_obj})
 
 
+from django.shortcuts import get_object_or_404, render
+from django.contrib.auth.decorators import login_required
+from .models import Author, Book
+
 @login_required(login_url='signin')
-def author(request,pk):
+def author(request, pk):
     author = get_object_or_404(Author, pk=pk)
-    return render(request, 'author_profile.html', {'author': author})
+    books = Book.objects.filter(author_id=author).annotate(average_rating=Avg('reviews__rating')).order_by('-average_rating')
+    return render(request, 'author_profile.html', {'author': author, 'books': books})
+
+
 
 @login_required(login_url='signin')
 def profile(request):

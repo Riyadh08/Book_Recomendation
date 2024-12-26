@@ -23,17 +23,17 @@
 
             <div class="section" id="books">
                 <h2>Books</h2>
-                <div class="books">
-                    {% for book in books %}
+                <div id="books-container">
+                    <!-- Initially load a few books -->
+                    {% for book in books|slice:":4" %}
                         <div class="book lazy-content">
-                            <img src="{{ book.cover_image_url }}" alt="Book Cover">
-                            <div class="book-title">{{ book.title }}</div>
-                            <div class="book-rating">Rating: {{ book.rating }}</div>
+                            <img src="{{ book.image.url }}" alt="Book Cover">
+                            <div class="book-title">{{ book.book_name }}</div>
+                            <div class="book-rating">Rating: {{ book.average_rating }}</div>
                         </div>
-                    {% empty %}
-                        <p>No books found for this author.</p>
                     {% endfor %}
                 </div>
+                <button id="load-more" class="load-more">Load More</button>
             </div>
         </div>
     </div>
@@ -41,30 +41,38 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", () => {
-        const booksContainer = document.querySelector(".books");
+        let currentPage = 1;
+        const loadMoreButton = document.getElementById("load-more");
+        const booksContainer = document.getElementById("books-container");
 
-        // Simulate lazy loading of books
-        const books = [
-            { title: "Book 1", rating: "4.5", image: "placeholder-book.jpg" },
-            { title: "Book 2", rating: "4.0", image: "placeholder-book.jpg" },
-            { title: "Book 3", rating: "4.2", image: "placeholder-book.jpg" },
-            { title: "Book 4", rating: "4.8", image: "placeholder-book.jpg" },
-        ];
+        loadMoreButton.addEventListener("click", () => {
+            currentPage += 1;
 
-        books.forEach(book => {
-            const bookElement = document.createElement("div");
-            bookElement.classList.add("book");
-            bookElement.innerHTML = `
-                <img src="${book.image}" alt="${book.title}">
-                <div class="book-title">${book.title}</div>
-                <div class="book-rating">Rating: ${book.rating}</div>
-            `;
-            booksContainer.appendChild(bookElement);
-        });
+            // Fetch more books via AJAX (simulated here with a timeout)
+            setTimeout(() => {
+                // Simulate adding more books
+                const moreBooks = [
+                    { title: "Book 5", rating: "4.3", image: "placeholder-book.jpg" },
+                    { title: "Book 6", rating: "4.7", image: "placeholder-book.jpg" },
+                    // Add more books as needed
+                ];
 
-        // Remove lazy-content opacity when loaded
-        booksContainer.querySelectorAll(".lazy-content").forEach(book => {
-            book.classList.remove("lazy-content");
+                moreBooks.forEach(book => {
+                    const bookElement = document.createElement("div");
+                    bookElement.classList.add("book");
+                    bookElement.innerHTML = `
+                        <img src="${book.image}" alt="${book.title}">
+                        <div class="book-title">${book.title}</div>
+                        <div class="book-rating">Rating: ${book.rating}</div>
+                    `;
+                    booksContainer.appendChild(bookElement);
+                });
+
+                // Hide the button if there are no more books to load (simulated condition)
+                if (currentPage >= 3) {
+                    loadMoreButton.style.display = "none";
+                }
+            }, 1000);
         });
     });
 </script>
@@ -138,37 +146,59 @@
         margin-bottom: 10px;
     }
 
-    .books {
+    #books-container {
         display: flex;
-        flex-wrap: nowrap; /* Prevent wrapping */
-        overflow-x: auto; /* Horizontal scrolling */
-        gap: 10px;
+        flex-direction: column; /* Stack books vertically */
+        gap: 20px;
         padding-bottom: 10px;
     }
 
     .book {
-        width: 200px; /* Width of each book */
+        width: 100%; /* Full width */
         background-color: #f4f4f4;
         padding: 10px;
         border-radius: 5px;
         text-align: center;
         box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
     }
 
     .book img {
-        max-width: 100%;
+        max-width: 100px; /* Limit image size */
         border-radius: 5px;
+        margin-right: 20px;
     }
 
     .book-title {
         margin-top: 10px;
         font-size: 14px;
         font-weight: bold;
+        flex-grow: 1; /* Take remaining space */
+        text-align: left;
     }
 
     .book-rating {
         margin-top: 5px;
         color: #888;
+        text-align: left;
+    }
+
+    .load-more {
+        display: block;
+        width: 200px;
+        padding: 10px;
+        text-align: center;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        margin: 20px auto;
+        cursor: pointer;
+    }
+
+    .load-more:hover {
+        background-color: #0056b3;
     }
 </style>
 
