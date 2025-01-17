@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Recommendation Chatbot</title>
+    <style>
+        /* Add some styling for a better user experience */
+        .chat-container {
+            width: 50%;
+            margin: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .chat-log {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+            padding: 10px;
+        }
+        .user-message, .bot-message {
+            margin: 5px 0;
+        }
+        .bot-message {
+            color: blue;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <h1>Book Recommendation Chatbot</h1>
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+        <div id="chat-log" class="chat-log"></div>
+        <input id="user-input" type="text" placeholder="Ask for a book recommendation...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.startsWith(name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    
+        function sendMessage() {
+            const userInput = document.getElementById("user-input").value.trim();
+    
+            if (userInput === "") {
+                document.getElementById("chat-log").innerHTML += `<div class="bot-message">Bot: Please type something to get recommendations.</div>`;
+                return;
+            }
+    
+            document.getElementById("chat-log").innerHTML += `<div class="user-message">You: ${userInput}</div>`;
+    
+            fetch('/chatbot/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken') // Dynamically fetch CSRF token
+                },
+                body: JSON.stringify({ query: userInput }) // Send user input as JSON
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.recommendations) {
+                    let recommendationText = "Bot: " + data.response + "<br>";
+                    data.recommendations.forEach((book, index) => {
+                        recommendationText += `${index + 1}. <strong>${book.Title}</strong> by ${book.Author} (${book.Genres})<br>`;
+                    });
+                    document.getElementById("chat-log").innerHTML += `<div class="bot-message">${recommendationText}</div>`;
+                } else {
+                    document.getElementById("chat-log").innerHTML += `<div class="bot-message">Bot: ${data.response}</div>`;
+                }
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                document.getElementById("chat-log").innerHTML += `<div class="bot-message">Bot: Sorry, something went wrong.</div>`;
+            });
+    
+            document.getElementById("user-input").value = ""; // Clear input field
+        }
+    </script>
+    
+</body>
+</html>

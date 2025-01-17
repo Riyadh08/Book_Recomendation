@@ -274,3 +274,61 @@ def submit_review(request, book_id):
             return JsonResponse({'success': False, 'message': str(e)}, status=500)
     else:
         return JsonResponse({'success': False, 'message': 'Invalid request method.'}, status=405)
+
+
+import json
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import pandas as pd
+import os
+
+# Load the recommendation model (your function or logic for recommendations)
+from .recommendation_model import content_based_recommendations
+
+# Load the dataset once to use across requests
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+dataset_path = os.path.join(BASE_DIR, 'static', 'assets', 'dataset', 'Final_Dataset.csv')
+df = pd.read_csv(dataset_path)
+
+@csrf_exempt
+def chatbot(request):
+    if request.method == 'POST':
+        # Parse user input
+        data = json.loads(request.body.decode('utf-8'))
+        user_input = data.get('query', '').strip().lower()
+        print(f"User Input: {user_input}")  # Debugging
+
+        if not user_input:
+            return JsonResponse({"response": "Please provide a book title or author name for recommendations."})
+
+        # Search in the dataset
+        filtered_books = df[
+            (df['Title'].str.lower().str.contains(user_input)) | 
+            (df['Author'].str.lower().str.contains(user_input))
+        ]
+        print(f"Filtered Books: {filtered_books}")  # Debugging
+
+        if filtered_books.empty:
+            return JsonResponse({"response": f"Sorry, I couldn't find any books matching '{user_input}'."})
+
+        # Use the first matching book's ID for recommendations
+        book_id = filtered_books.iloc[0]['Book_ID']
+        print(f"Selected Book ID: {book_id}")  # Debugging
+
+        recommendations = content_based_recommendations(book_id=book_id, n=5)
+        print(f"Recommendations: {recommendations}")  # Debugging
+
+        recommended_books = recommendations.to_dict(orient='records')
+        return JsonResponse({
+            "response": f"Here are some book recommendations based on '{filtered_books.iloc[0]['Title']}' by {filtered_books.iloc[0]['Author']}:",
+            "recommendations": recommended_books
+        })
+
+    return JsonResponse({"response": "Welcome to the Book Recommendation Chatbot!"})
+
+
+
+from django.shortcuts import render
+
+def chatbot_page(request):
+    return render(request, 'chatbot.html')
