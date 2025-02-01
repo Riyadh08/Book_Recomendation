@@ -1,18 +1,52 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages, auth
-from .models import Cuser,Book,Author,Review
+from .models import Cuser,Book,Author,Review,FollowAuthor
 from django.contrib.auth.decorators import login_required
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
-from django.db.models import Avg, Q
+from django.db.models import Avg, Q, Count
+from django.utils import timezone
 
 @login_required(login_url='signin')
 def index(request):
-    return render(request, 'index.html')
+    # Get authors followed by the user
+    followed_authors = Author.objects.filter(followers__follower=request.user)
+    
+    # Get recent reviews from users following the same authors
+    recent_reviews = Review.objects.filter(
+        book_id__author_id__in=followed_authors
+    ).select_related(
+        'user_id',
+        'book_id',
+        'book_id__author_id',
+        'user_id__cuser'
+    ).order_by('-created_at')[:5]
+
+    # Get popular books (books with highest average rating and minimum 3 reviews)
+    popular_books = Book.objects.annotate(
+        avg_rating=Avg('reviews__rating'),
+        num_reviews=Count('reviews')
+    ).filter(
+        num_reviews__gte=3
+    ).order_by('-avg_rating')[:5]
+
+    # Get new books (added in the last 30 days)
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    new_books = Book.objects.filter(
+        reviews__created_at__gte=thirty_days_ago
+    ).distinct().order_by('-reviews__created_at')[:5]
+
+    context = {
+        'recent_reviews': recent_reviews,
+        'popular_books': popular_books,
+        'new_books': new_books,
+    }
+    
+    return render(request, 'index.html', context)
 
 def signup(request):
     if request.method == 'POST':
@@ -124,7 +158,7 @@ def search(request):
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
 
-    if request.is_ajax():
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         books_data = [{
             'book_id': book.pk,
             'book_name': book.book_name,
@@ -332,3 +366,33 @@ from django.shortcuts import render
 
 def chatbot_page(request):
     return render(request, 'chatbot.html')
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404
+from .models import Author, FollowAuthor
+
+@login_required
+@csrf_exempt  # If using AJAX requests without CSRF token
+def follow_author(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+        author_id = data.get("author_id")
+        action = data.get("action")  # Expect "follow" or "unfollow"
+
+        author = get_object_or_404(Author, author_id=author_id)
+        
+        if action == "follow":
+            # Prevent duplicate follows
+            follow_instance, created = FollowAuthor.objects.get_or_create(follower=request.user, following=author)
+            if created:
+                return JsonResponse({"success": True, "message": "Followed successfully."})
+            else:
+                return JsonResponse({"success": False, "message": "Already following this author."}, status=400)
+        
+        elif action == "unfollow":
+            follow_instance = FollowAuthor.objects.filter(follower=request.user, following=author).first()
+            if follow_instance:
+                follow_instance.delete()
+                return JsonResponse({"success": True, "message": "Unfollowed successfully."})
+
+    return JsonResponse({"success": False, "message": "Invalid request."}, status=400)

@@ -8,7 +8,16 @@
         <!-- Left Sidebar (Author Image) -->
         <div class="sidebar">
             <img src="{{ author.author_image.url }}" alt="Author Image">
-            <button class="follow-button">Follow</button>
+            <button id="follow-button" class="follow-button"
+                {% if user in author.followers.all %} 
+                    style="background-color: #dc3545;" 
+                    data-action="unfollow"
+                {% else %} 
+                    data-action="follow" 
+                {% endif %}>
+                {% if user in author.followers.all %} Unfollow {% else %} Follow {% endif %}
+            </button>
+            <form id="csrf-form">{% csrf_token %}</form> <!-- CSRF Token -->
         </div>
 
         <!-- Main Content (Author Information and Books) -->
@@ -41,42 +50,88 @@
 </div>
 
 <script>
-    let currentPage = 1;
-    let hasNextPage = true;
+    document.addEventListener("DOMContentLoaded", function () {
+        const followButton = document.getElementById('follow-button');
 
-    function loadBooks() {
-        fetch(`/author/{{ author.pk }}/load-more-books/?page=${currentPage}`, {
-            method: 'GET',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(response => response.json())
-        .then(data => {
-            const booksContainer = document.getElementById('books-container');
-            data.books.forEach(book => {
-                const bookElement = document.createElement('div');
-                bookElement.classList.add('book');
-                bookElement.innerHTML = `
-                    <img src="${book.image}" alt="${book.title}">
-                    <div class="book-title">
-                        <a href="${book.url}">${book.title}</a>
-                    </div>
-                    <div class="book-rating">Rating: ${book.rating}</div>
-                `;
-                booksContainer.appendChild(bookElement);
+        if (followButton) {
+            followButton.addEventListener("click", function () {
+                const action = this.getAttribute("data-action");
+                const authorId = "{{ author.pk }}";  
+                const csrftoken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+
+                // Debugging log to check if click event is triggered
+                console.log(`Action: ${action}, Author ID: ${authorId}, CSRF Token: ${csrftoken}`);
+
+                fetch(`/follow-author/`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrftoken,
+                    },
+                    body: JSON.stringify({ 
+                        author_id: authorId, 
+                        action: action 
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update button text and style based on follow/unfollow action
+                        if (action === "follow") {
+                            this.textContent = "Unfollow";
+                            this.style.backgroundColor = "#dc3545";
+                            this.setAttribute("data-action", "unfollow");
+                        } else {
+                            this.textContent = "Follow";
+                            this.style.backgroundColor = "#007bff";
+                            this.setAttribute("data-action", "follow");
+                        }
+                    } else {
+                        alert("Failed to update follow status.");
+                    }
+                })
+                .catch(error => console.error("Error:", error));
             });
-            hasNextPage = data.has_next;
-            if (!hasNextPage) {
-                document.getElementById('load-more').style.display = 'none';
-            }
-        })
-        .catch(error => console.error('Error loading more books:', error));
-    }
-
-    document.getElementById('load-more').addEventListener('click', () => {
-        if (hasNextPage) {
-            currentPage++;
-            loadBooks();
         }
+
+        // Load More Books
+        let currentPage = 1;
+        let hasNextPage = true;
+
+        function loadBooks() {
+            fetch(`/author/{{ author.pk }}/load-more-books/?page=${currentPage}`, {
+                method: 'GET',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const booksContainer = document.getElementById('books-container');
+                data.books.forEach(book => {
+                    const bookElement = document.createElement('div');
+                    bookElement.classList.add('book');
+                    bookElement.innerHTML = `
+                        <img src="${book.image}" alt="${book.title}">
+                        <div class="book-title">
+                            <a href="${book.url}">${book.title}</a>
+                        </div>
+                        <div class="book-rating">Rating: ${book.rating}</div>
+                    `;
+                    booksContainer.appendChild(bookElement);
+                });
+                hasNextPage = data.has_next;
+                if (!hasNextPage) {
+                    document.getElementById('load-more').style.display = 'none';
+                }
+            })
+            .catch(error => console.error('Error loading more books:', error));
+        }
+
+        document.getElementById('load-more').addEventListener('click', () => {
+            if (hasNextPage) {
+                currentPage++;
+                loadBooks();
+            }
+        });
     });
 </script>
 
@@ -151,13 +206,13 @@
 
     #books-container {
         display: flex;
-        flex-direction: column; /* Stack books vertically */
+        flex-direction: column;
         gap: 20px;
         padding-bottom: 10px;
     }
 
     .book {
-        width: 100%; /* Full width */
+        width: 100%;
         background-color: #f4f4f4;
         padding: 10px;
         border-radius: 5px;
@@ -168,16 +223,15 @@
     }
 
     .book img {
-        max-width: 100px; /* Limit image size */
+        max-width: 100px;
         border-radius: 5px;
         margin-right: 20px;
     }
 
     .book-title {
-        margin-top: 10px;
         font-size: 14px;
         font-weight: bold;
-        flex-grow: 1; /* Take remaining space */
+        flex-grow: 1;
         text-align: left;
     }
 
@@ -191,7 +245,6 @@
     }
 
     .book-rating {
-        margin-top: 5px;
         color: #888;
         text-align: left;
     }

@@ -72,3 +72,18 @@ class Review(models.Model):
 
     def __str__(self):
         return f'Review for {self.book.book_name} by {self.user.user_name}'
+
+from django.db import models
+from django.contrib.auth.models import User
+from .models import Author  # Assuming you have the Author model already
+
+class FollowAuthor(models.Model):
+    follower = models.ForeignKey(User, related_name="following", on_delete=models.CASCADE)
+    following = models.ForeignKey(Author, related_name="followers", on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('follower', 'following')  # Prevent duplicate follows
+
+    def __str__(self):
+        return f"{self.follower.username} follows {self.following.name}"

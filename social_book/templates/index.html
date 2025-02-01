@@ -1,9 +1,166 @@
 {% extends "base.html" %}
 
-{% block title %}Home{% endblock title %}
+{% block title %}Dashboard - Social Book{% endblock title %}
 
 {% block body %}
+<div class="container">
+    <!-- Welcome Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-primary text-white">
+                <div class="card-body d-flex align-items-center">
+                    <img src="{{ user.cuser.user_image.url }}" alt="Profile" class="rounded-circle me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                    <div>
+                        <h2 class="card-title mb-0">Welcome back, {{ user.username }}!</h2>
+                        <p class="card-text">What would you like to read today?</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<h1>This is home template</h1>
+    <div class="row">
+        <!-- Recent Reviews from Following -->
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h3 class="card-title mb-0"><i class="fas fa-comments me-2"></i>Recent Reviews</h3>
+                </div>
+                <div class="card-body">
+                    {% if recent_reviews %}
+                        {% for review in recent_reviews %}
+                        <div class="review-card mb-3">
+                            <div class="d-flex align-items-start">
+                                <img src="{{ review.user_id.cuser.user_image.url }}" alt="User" class="rounded-circle me-2" style="width: 40px; height: 40px; object-fit: cover;">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-1">{{ review.user_id.username }}</h5>
+                                        <small class="text-muted">{{ review.created_at|timesince }} ago</small>
+                                    </div>
+                                    <div class="mb-2">
+                                        <a href="{% url 'book' review.book_id.pk %}" class="text-decoration-none">
+                                            <strong>{{ review.book_id.book_name }}</strong>
+                                        </a>
+                                        by 
+                                        <a href="{% url 'author' review.book_id.author_id.pk %}" class="text-decoration-none">
+                                            {{ review.book_id.author_id.name }}
+                                        </a>
+                                    </div>
+                                    <div class="mb-2">
+                                        {% for i in "12345"|make_list %}
+                                            {% if forloop.counter <= review.rating %}
+                                                <i class="fas fa-star text-warning"></i>
+                                            {% else %}
+                                                <i class="far fa-star text-warning"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    <p class="mb-0">{{ review.review_text }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% if not forloop.last %}<hr>{% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center py-3">No recent reviews from people you follow yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
 
-{% endblock body%}
+        <!-- Right Sidebar -->
+        <div class="col-md-4">
+            <!-- Popular Books -->
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h3 class="card-title mb-0"><i class="fas fa-fire me-2"></i>Popular Books</h3>
+                </div>
+                <div class="card-body">
+                    {% if popular_books %}
+                        {% for book in popular_books %}
+                        <div class="popular-book mb-3">
+                            <div class="d-flex align-items-center">
+                                <img src="{{ book.image.url }}" alt="{{ book.book_name }}" class="me-3" style="width: 60px; height: 90px; object-fit: cover;">
+                                <div>
+                                    <h6 class="mb-1"><a href="{% url 'book' book.pk %}" class="text-decoration-none">{{ book.book_name }}</a></h6>
+                                    <p class="mb-1 text-muted small">by {{ book.author_id.name }}</p>
+                                    <div class="text-warning small">
+                                        <i class="fas fa-star"></i>
+                                        <span>{{ book.average_rating|floatformat:1 }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% if not forloop.last %}<hr>{% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center py-3">No popular books available.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- New Releases -->
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h3 class="card-title mb-0"><i class="fas fa-book me-2"></i>New Releases</h3>
+                </div>
+                <div class="card-body">
+                    {% if new_books %}
+                        {% for book in new_books %}
+                        <div class="new-book mb-3">
+                            <div class="d-flex align-items-center">
+                                <img src="{{ book.image.url }}" alt="{{ book.book_name }}" class="me-3" style="width: 60px; height: 90px; object-fit: cover;">
+                                <div>
+                                    <h6 class="mb-1"><a href="{% url 'book' book.pk %}" class="text-decoration-none">{{ book.book_name }}</a></h6>
+                                    <p class="mb-1 text-muted small">by {{ book.author_id.name }}</p>
+                                    <p class="mb-0 small text-muted">{{ book.genre }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% if not forloop.last %}<hr>{% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center py-3">No new releases available.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border: none;
+        box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        border-radius: 10px;
+    }
+    .card-header {
+        border-bottom: 1px solid rgba(0,0,0,0.1);
+        padding: 1rem;
+    }
+    .card-title {
+        font-size: 1.25rem;
+        color: #2c3e50;
+    }
+    .review-card {
+        transition: all 0.3s ease;
+        padding: 1rem;
+        border-radius: 8px;
+    }
+    .review-card:hover {
+        background-color: #f8f9fa;
+    }
+    .popular-book, .new-book {
+        transition: all 0.3s ease;
+    }
+    .popular-book:hover, .new-book:hover {
+        transform: translateX(5px);
+    }
+    a {
+        color: #2c3e50;
+    }
+    a:hover {
+        color: #3498db;
+    }
+</style>
+{% endblock body %}

@@ -15,5 +15,5 @@ urlpatterns = [
     path('author/<int:pk>/load-more-books/', views.load_more_books, name='load_more_books'), # New endpoint for loading more books
      path('chatbot_page/', views.chatbot_page, name='chatbot_page'),  # Render chatbot.html
     path('chatbot/', views.chatbot, name='chatbot'),  # Chatbot API
-
+    path("follow-author/", views.follow_author, name="follow-author"),
 ]
