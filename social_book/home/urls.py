@@ -13,7 +13,8 @@ urlpatterns = [
     path('book/<int:book_id>/reviews', views.reviews_list, name='reviews_list'),
     path('submit-review/<int:book_id>/', views.submit_review, name='submit_review'),
     path('author/<int:pk>/load-more-books/', views.load_more_books, name='load_more_books'), # New endpoint for loading more books
-     path('chatbot_page/', views.chatbot_page, name='chatbot_page'),  # Render chatbot.html
+    path('chatbot_page/', views.chatbot_page, name='chatbot_page'),  # Render chatbot.html
     path('chatbot/', views.chatbot, name='chatbot'),  # Chatbot API
     path("follow-author/", views.follow_author, name="follow-author"),
+    path('api/search/', views.api_search, name='api_search'),  # New search API endpoint
 ]

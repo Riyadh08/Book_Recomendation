@@ -10,6 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 from django.db.models import Avg, Q, Count
 from django.utils import timezone
+from django.urls import reverse
 
 @login_required(login_url='signin')
 def index(request):
@@ -18,13 +19,14 @@ def index(request):
     
     # Get recent reviews from users following the same authors
     recent_reviews = Review.objects.filter(
-        book_id__author_id__in=followed_authors
+        Q(book_id__author_id__in=followed_authors) |  # Reviews of followed authors' books
+        Q(user_id__in=User.objects.filter(following__following__in=followed_authors))  # Reviews by users following same authors
     ).select_related(
         'user_id',
         'book_id',
         'book_id__author_id',
         'user_id__cuser'
-    ).order_by('-created_at')[:5]
+    ).order_by('-created_at')[:10]
 
     # Get popular books (books with highest average rating and minimum 3 reviews)
     popular_books = Book.objects.annotate(
@@ -32,18 +34,28 @@ def index(request):
         num_reviews=Count('reviews')
     ).filter(
         num_reviews__gte=3
-    ).order_by('-avg_rating')[:5]
+    ).order_by('-avg_rating')[:8]
 
     # Get new books (added in the last 30 days)
     thirty_days_ago = timezone.now() - timedelta(days=30)
     new_books = Book.objects.filter(
         reviews__created_at__gte=thirty_days_ago
-    ).distinct().order_by('-reviews__created_at')[:5]
+    ).annotate(
+        avg_rating=Avg('reviews__rating'),
+        num_reviews=Count('reviews')
+    ).distinct().order_by('-reviews__created_at')[:8]
+
+    # Get followed authors' recent books
+    followed_books = Book.objects.filter(
+        author_id__in=followed_authors
+    ).order_by('-reviews__created_at').distinct()[:5]
 
     context = {
         'recent_reviews': recent_reviews,
         'popular_books': popular_books,
         'new_books': new_books,
+        'followed_authors': followed_authors,
+        'followed_books': followed_books,
     }
     
     return render(request, 'index.html', context)
@@ -209,14 +221,35 @@ def load_more_books(request, pk):
 
 @login_required(login_url='signin')
 def profile(request):
-    user = request.user  # Get the current logged-in user
-    # Use get_object_or_404 to avoid errors if Cuser profile does not exist
-    profile = get_object_or_404(Cuser, user__username=user.username)
+    if request.method == 'POST':
+        user = request.user
+        cuser = user.cuser
 
+        # Update user data
+        user.username = request.POST.get('username', user.username)
+        user.email = request.POST.get('email', user.email)
+        
+        # Update cuser data
+        cuser.user_date_of_birth = datetime.strptime(request.POST.get('date_of_birth'), '%Y-%m-%d').date()
+        cuser.user_gender = request.POST.get('gender', cuser.user_gender)
+        cuser.user_location = request.POST.get('location', cuser.user_location)
+        
+        # Handle profile image update
+        if 'user_image' in request.FILES:
+            cuser.user_image = request.FILES['user_image']
+        
+        user.save()
+        cuser.save()
+        messages.success(request, 'Profile updated successfully!')
+        return redirect('profile')
+
+    # Get user's reviews
+    user_reviews = Review.objects.filter(user_id=request.user).select_related('book_id').order_by('-created_at')
+    
     context = {
-        'profile': profile  # Pass the user profile to the template
+        'profile': request.user.cuser,
+        'user_reviews': user_reviews,
     }
-
     return render(request, 'profile.html', context)
 
 @login_required(login_url='signin')
@@ -277,33 +310,36 @@ def reviews_list(request, book_id):
 def submit_review(request, book_id):
     if request.method == "POST":
         try:
-            # Parse the JSON data from the request
             data = json.loads(request.body)
             review_text = data.get('review')
             rating = data.get('rating')
 
-            # Validate the input
             if not review_text or not rating:
                 return JsonResponse({'success': False, 'message': 'Review and rating are required.'}, status=400)
 
-            # Fetch the book object
-            try:
-                book = Book.objects.get(pk=book_id)
-            except Book.DoesNotExist:
-                return JsonResponse({'success': False, 'message': 'Book not found.'}, status=404)
+            book = get_object_or_404(Book, pk=book_id)
+            user = request.user
 
-            # Fetch the current authenticated user
-            user = request.user  # `request.user` will give you the currently logged-in user
+            # Check if user has already reviewed this book
+            existing_review = Review.objects.filter(book_id=book, user_id=user).first()
+            
+            if existing_review:
+                # Update existing review
+                existing_review.review_text = review_text
+                existing_review.rating = int(rating)
+                existing_review.save()
+                message = 'Review updated successfully!'
+            else:
+                # Create new review
+                Review.objects.create(
+                    book_id=book,
+                    user_id=user,
+                    review_text=review_text,
+                    rating=int(rating)
+                )
+                message = 'Review submitted successfully!'
 
-            # Create the review
-            review = Review.objects.create(
-                book_id=book,  # Correct foreign key assignment for book
-                user_id=user,  # Correct foreign key assignment for user
-                review_text=review_text,
-                rating=int(rating)
-            )
-
-            return JsonResponse({'success': True, 'message': 'Review submitted successfully!'})
+            return JsonResponse({'success': True, 'message': message})
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)}, status=500)
     else:
@@ -396,3 +432,73 @@ def follow_author(request):
                 return JsonResponse({"success": True, "message": "Unfollowed successfully."})
 
     return JsonResponse({"success": False, "message": "Invalid request."}, status=400)
+
+@login_required(login_url='signin')
+def api_search(request):
+    query = request.GET.get('q', '').strip()
+    search_type = request.GET.get('type', 'all')
+    
+    if len(query) < 2:
+        return JsonResponse({'results': []})
+    
+    results = []
+    
+    if search_type in ['all', 'books']:
+        # Search books
+        books = Book.objects.filter(
+            Q(book_name__icontains=query) |
+            Q(author_id__name__icontains=query) |
+            Q(genre__icontains=query)
+        ).select_related('author_id').distinct()[:5]
+        
+        for book in books:
+            results.append({
+                'title': book.book_name,
+                'subtitle': f"by {book.author_id.name} • {book.genre}",
+                'image': book.image.url,
+                'url': reverse('book', args=[book.pk]),
+                'type': 'book'
+            })
+    
+    if search_type in ['all', 'authors']:
+        # Search authors
+        authors = Author.objects.filter(
+            Q(name__icontains=query) |
+            Q(bio__icontains=query)
+        ).distinct()[:5]
+        
+        for author in authors:
+            results.append({
+                'title': author.name,
+                'subtitle': author.bio[:100] + '...' if author.bio else 'Author',
+                'image': author.author_image.url,
+                'url': reverse('author', args=[author.pk]),
+                'type': 'author'
+            })
+    
+    if search_type in ['all', 'genres']:
+        # Search genres (unique genres from books)
+        genres = Book.objects.filter(
+            genre__icontains=query
+        ).values('genre').distinct()[:5]
+        
+        for genre in genres:
+            # Get a representative book for the genre
+            sample_book = Book.objects.filter(genre__iexact=genre['genre']).first()
+            if sample_book:
+                results.append({
+                    'title': genre['genre'],
+                    'subtitle': f"{Book.objects.filter(genre__iexact=genre['genre']).count()} books",
+                    'image': sample_book.image.url,
+                    'url': f"/search?genre={genre['genre']}",
+                    'type': 'genre'
+                })
+    
+    # Sort results by relevance (exact matches first)
+    results.sort(key=lambda x: (
+        not x['title'].lower().startswith(query.lower()),  # Exact start matches first
+        not query.lower() in x['title'].lower(),           # Contains matches second
+        x['title'].lower()                                 # Alphabetical otherwise
+    ))
+    
+    return JsonResponse({'results': results[:10]})  # Limit to top 10 results total

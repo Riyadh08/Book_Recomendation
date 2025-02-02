@@ -1,0 +1,132 @@
+<!-- Footer -->
+<footer class="bg-dark text-light py-4 mt-5">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-6 mb-4 mb-md-0">
+        <h5 class="mb-3">About Social Book</h5>
+        <p class="mb-0">Your personal space for discovering, sharing, and discussing books with fellow readers. Join our community of book lovers today!</p>
+      </div>
+      <div class="col-md-6">
+        <h5 class="mb-3">Connect With Us</h5>
+        <div class="social-links">
+          <a href="#" class="text-light me-3 hover-link">
+            <i class="fab fa-facebook fa-lg"></i>
+          </a>
+          <a href="#" class="text-light me-3 hover-link">
+            <i class="fab fa-twitter fa-lg"></i>
+          </a>
+          <a href="#" class="text-light me-3 hover-link">
+            <i class="fab fa-instagram fa-lg"></i>
+          </a>
+        </div>
+        <div class="mt-4">
+          <h6 class="mb-2">Newsletter</h6>
+          <form class="newsletter-form">
+            <div class="input-group">
+              <input type="email" class="form-control" placeholder="Enter your email">
+              <button class="btn btn-primary" type="submit">Subscribe</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <hr class="my-4 border-light">
+    <div class="row align-items-center">
+      <div class="col-md-6 text-center text-md-start mb-3 mb-md-0">
+        <small>&copy; {% now "Y" %} Social Book. All rights reserved.</small>
+      </div>
+      <div class="col-md-6 text-center text-md-end">
+        <small>
+          <a href="#" class="text-light me-3 text-decoration-none hover-link">Privacy Policy</a>
+          <a href="#" class="text-light me-3 text-decoration-none hover-link">Terms of Service</a>
+          <a href="#" class="text-light text-decoration-none hover-link">Contact Us</a>
+        </small>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<style>
+  footer {
+    background-color: #1a1a1a;
+  }
+
+  footer h5 {
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+  }
+
+  .hover-link {
+    transition: all 0.3s ease;
+    opacity: 0.9;
+  }
+
+  .hover-link:hover {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+
+  .social-links a {
+    display: inline-block;
+    transition: all 0.3s ease;
+  }
+
+  .social-links a:hover {
+    transform: scale(1.2);
+  }
+
+  .newsletter-form .form-control {
+    background-color: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+  }
+
+  .newsletter-form .form-control::placeholder {
+    color: rgba(255,255,255,0.6);
+  }
+
+  .newsletter-form .form-control:focus {
+    background-color: rgba(255,255,255,0.15);
+    border-color: rgba(255,255,255,0.3);
+    box-shadow: none;
+  }
+
+  .newsletter-form .btn {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  @media (max-width: 768px) {
+    footer {
+      text-align: center;
+    }
+
+    .social-links {
+      margin-bottom: 1rem;
+    }
+
+    .newsletter-form {
+      max-width: 300px;
+      margin: 0 auto;
+    }
+  }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Handle newsletter form submission
+  const newsletterForm = document.querySelector('.newsletter-form');
+  if (newsletterForm) {
+    newsletterForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const email = this.querySelector('input[type="email"]').value;
+      if (email) {
+        utils.showToast('Thank you for subscribing!', 'success');
+        this.reset();
+      } else {
+        utils.showToast('Please enter a valid email address', 'warning');
+      }
+    });
+  }
+});
+</script> 

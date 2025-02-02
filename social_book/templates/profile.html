@@ -3,146 +3,161 @@
 {% block title %}Profile{% endblock title %}
 
 {% block body %}
-<div class="profile-container">
-    <div class="left-side">
-        <!-- Display the user's profile image -->
-        <img src="{{ profile.user_image.url }}" style="height: 250px; width: 100%;" alt="User Picture">
-        <!-- Display the user's rating and reviews (These are placeholders for now) -->
-        <p class="rating">Rating: 0.0 (0 ratings)</p>
-        <p class="reviews">Reviews: 0 reviews</p>
-        <p class="photos">More Photos</p>
+<div class="container py-4">
+    <div class="row">
+        <!-- Left Column - Profile Info -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <img src="{{ profile.user_image.url }}" class="rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                    <h4 class="card-title">{{ user.username }}</h4>
+                    <p class="text-muted">Member since {{ user.date_joined|date:"F Y" }}</p>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                        <i class="fas fa-edit me-2"></i>Edit Profile
+                    </button>
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <i class="fas fa-envelope me-2"></i>{{ user.email }}
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-calendar me-2"></i>{{ profile.user_date_of_birth|date:"F j, Y" }}
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-venus-mars me-2"></i>{{ profile.user_gender }}
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-map-marker-alt me-2"></i>{{ profile.user_location }}
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Right Column - Reviews -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">My Reviews</h5>
+                </div>
+                <div class="card-body">
+                    {% if user_reviews %}
+                        {% for review in user_reviews %}
+                        <div class="review-card mb-4">
+                            <div class="d-flex align-items-start">
+                                <img src="{{ review.book_id.image.url }}" alt="{{ review.book_id.book_name }}" 
+                                     style="width: 100px; height: 150px; object-fit: cover;" class="me-3">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h5 class="mb-0">
+                                            <a href="{% url 'book' review.book_id.pk %}" class="text-decoration-none">
+                                                {{ review.book_id.book_name }}
+                                            </a>
+                                        </h5>
+                                        <small class="text-muted">{{ review.created_at|timesince }} ago</small>
+                                    </div>
+                                    <div class="mb-2">
+                                        {% for i in "12345"|make_list %}
+                                            {% if forloop.counter <= review.rating %}
+                                                <i class="fas fa-star text-warning"></i>
+                                            {% else %}
+                                                <i class="far fa-star text-warning"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    <p class="mb-0">{{ review.review_text }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% if not forloop.last %}<hr>{% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-center text-muted py-4">You haven't written any reviews yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
+</div>
 
-    <div class="right-side">
-        <!-- Display the user's name -->
-        <h1>{{ profile.user_name }} <span style="font-size: 14px;"><a href="#">(edit profile)</a></span></h1>
-        <div class="details">
-            <p><strong>Details:</strong></p>
-            <!-- Display the user's age, gender, and location -->
-            <p>Age: {{ profile.user_date_of_birth|date:"Y" }} years, {{ profile.user_gender }}, {{ profile.user_location }}</p>
-            <p><strong>Birthday:</strong> {{ profile.user_date_of_birth|date:"F j, Y" }}</p>
-            <p><strong>Website:</strong> <a href="https://riyadh08.github.io/Static-Portfolio/" target="_blank">https://riyadh08.github.io</a></p>
-            <p><strong>Activity:</strong> Joined in September 2024, last active this month</p>
-        </div>
-
-        <div class="profile-section">
-            <h2>Bookshelves</h2>
-            <ul class="bookshelves">
-                <!-- Placeholder for bookshelves (since data isn't in the model) -->
-                <li>Read: 0 books</li>
-                <li>Currently Reading: 0 books</li>
-                <li>To-Read: 1 book</li>
-            </ul>
-        </div>
-
-        <div class="profile-section">
-            <h2>Friends</h2>
-            <ul class="friends-list">
-                <!-- You would need a friends model to dynamically populate this -->
-                <li>Aparajito Apu - 15 books, 31 friends</li>
-                <li>Monowarul Islam - 802 books, 334 friends</li>
-            </ul>
-        </div>
-
-        <div class="profile-section activity">
-            <h2>Recent Updates</h2>
-            <p>Robiul Ryad is now friends with Aparajito Apu.</p>
-            <p>Robiul Ryad is now following Sarat Chandra Chattopadhyay.</p>
+<!-- Edit Profile Modal -->
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" name="username" class="form-control" value="{{ user.username }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control" value="{{ user.email }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Date of Birth</label>
+                        <input type="date" name="date_of_birth" class="form-control" 
+                               value="{{ profile.user_date_of_birth|date:'Y-m-d' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Gender</label>
+                        <select name="gender" class="form-select">
+                            <option value="Male" {% if profile.user_gender == 'Male' %}selected{% endif %}>Male</option>
+                            <option value="Female" {% if profile.user_gender == 'Female' %}selected{% endif %}>Female</option>
+                            <option value="Other" {% if profile.user_gender == 'Other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Location</label>
+                        <input type="text" name="location" class="form-control" value="{{ profile.user_location }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Profile Image</label>
+                        <input type="file" name="user_image" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
 <style>
-    body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 0;
-        background-color: #f4f4f9;
-        color: #333;
+    .card {
+        border: none;
+        box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        border-radius: 10px;
     }
-
-    .profile-container {
-        max-width: 900px;
-        margin: 20px auto;
-        background: #fff;
-        border-radius: 8px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-        display: flex;
-        flex-wrap: wrap;
+    .review-card {
+        transition: all 0.3s ease;
     }
-
-    .left-side {
-        flex: 1;
-        min-width: 300px;
-        background-color: #f9f9f9;
-        padding: 20px;
-        text-align: center;
+    .review-card:hover {
+        transform: translateX(5px);
     }
-
-    .left-side img {
-        width: 120px;
-        height: 120px;
-        border-radius: 50%;
-        border: 4px solid #fff;
-        margin-bottom: 10px;
+    .list-group-item {
+        border-left: none;
+        border-right: none;
     }
-
-    .left-side .rating, .left-side .reviews, .left-side .photos {
-        margin: 10px 0;
-        font-size: 16px;
+    .list-group-item:first-child {
+        border-top: none;
     }
-
-    .right-side {
-        flex: 2;
-        padding: 20px;
-    }
-
-    .right-side h1 {
-        margin-top: 0;
-        font-size: 24px;
-        color: #333;
-    }
-
-    .right-side a {
-        color: #0066cc;
-        text-decoration: none;
-    }
-
-    .details {
-        margin: 20px 0;
-    }
-
-    .details p {
-        margin: 5px 0;
-        font-size: 14px;
-    }
-
-    .profile-section {
-        margin-bottom: 20px;
-    }
-
-    .profile-section h2 {
-        font-size: 20px;
-        margin-bottom: 10px;
-        color: #333;
-    }
-
-    .friends-list, .bookshelves {
-        list-style: none;
-        padding: 0;
-    }
-
-    .friends-list li, .bookshelves li {
-        padding: 10px;
-        background: #f9f9f9;
-        margin-bottom: 5px;
-        border-radius: 4px;
-    }
-
-    .activity {
-        border-top: 1px solid #eaeaea;
-        padding-top: 10px;
+    .list-group-item:last-child {
+        border-bottom: none;
     }
 </style>
+
+{% if messages %}
+<script>
+    {% for message in messages %}
+        alert("{{ message }}");
+    {% endfor %}
+</script>
+{% endif %}
 {% endblock body %}

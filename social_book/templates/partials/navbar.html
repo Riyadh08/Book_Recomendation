@@ -1,0 +1,490 @@
+<!-- Modern Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark navbar-custom sticky-top">
+  <div class="container">
+    <!-- Brand -->
+    <a class="navbar-brand d-flex align-items-center" href="/">
+      <i class="fas fa-book-reader me-2"></i>Social Book
+    </a>
+
+    <!-- Mobile Toggle -->
+    <button class="navbar-toggler" type="button" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    
+    <!-- Mobile Menu Backdrop -->
+    <div class="mobile-backdrop"></div>
+
+    <!-- Main Navigation -->
+    <div class="navbar-collapse">
+      <!-- Close button for mobile -->
+      <button type="button" class="close-menu d-lg-none" aria-label="Close menu">
+        <i class="fas fa-times"></i>
+      </button>
+
+      <!-- Navigation Links -->
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">
+            <i class="fas fa-home me-2"></i>Home
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.path == '/search/' %}active{% endif %}" href="/search">
+            <i class="fas fa-compass me-2"></i>Discover
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.path == '/chatbot_page/' %}active{% endif %}" href="/chatbot_page">
+            <i class="fas fa-robot me-2"></i>Book Bot
+          </a>
+        </li>
+      </ul>
+      
+      <!-- Search Bar -->
+      <div class="search-container">
+        <form class="search-form" onsubmit="return false;">
+          <div class="search-input-group">
+            <select class="search-type-select" id="searchType">
+              <option value="all">All</option>
+              <option value="books">Books</option>
+              <option value="authors">Authors</option>
+              <option value="genres">Genres</option>
+            </select>
+            <input type="text" 
+                   class="search-input" 
+                   id="searchInput" 
+                   placeholder="Search books, authors, genres..."
+                   autocomplete="off">
+          </div>
+          <div class="search-results" id="searchResults"></div>
+        </form>
+      </div>
+
+      <!-- User Menu / Auth Buttons -->
+      {% if user.is_authenticated %}
+      <ul class="navbar-nav">
+        <li class="nav-item dropdown user-nav-item">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+            <div class="user-profile">
+              <img src="{{ user.cuser.user_image.url }}" 
+                   alt="Profile"
+                   onerror="utils.handleImageError(this)">
+              <span>{{ user.username }}</span>
+            </div>
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li>
+              <a class="dropdown-item" href="{% url 'profile' %}">
+                <i class="fas fa-user"></i>Profile
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="#">
+                <i class="fas fa-book"></i>My Books
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="#">
+                <i class="fas fa-heart"></i>Favorites
+              </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <a class="dropdown-item" href="{% url 'logout' %}">
+                <i class="fas fa-sign-out-alt"></i>Logout
+              </a>
+            </li>
+          </ul>
+        </li>
+      </ul>
+      {% else %}
+      <div class="auth-buttons">
+        <a href="{% url 'signin' %}" class="btn btn-outline-light">Sign In</a>
+        <a href="{% url 'signup' %}" class="btn btn-light">Sign Up</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<style>
+  /* Navbar Styles */
+  .navbar-custom {
+    background-color: var(--primary-color);
+    padding: 0.75rem 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .navbar-brand {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white !important;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+  }
+
+  .navbar-brand:hover {
+    background-color: rgba(255,255,255,0.1);
+  }
+
+  /* Navigation Links */
+  .nav-link {
+    color: rgba(255,255,255,0.9) !important;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: all 0.3s;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+  }
+
+  .nav-link.active {
+    background-color: rgba(255,255,255,0.1);
+    color: white !important;
+  }
+
+  .nav-link:hover {
+    background-color: rgba(255,255,255,0.2);
+    transform: translateY(-1px);
+  }
+
+  /* Search Container */
+  .search-container {
+    position: relative;
+    max-width: 400px;
+    width: 100%;
+    margin: 0 2rem;
+  }
+
+  .search-form {
+    width: 100%;
+  }
+
+  .search-input-group {
+    position: relative;
+  }
+
+  .search-type-select {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: white;
+    padding: 0 1rem;
+    border-radius: 4px 0 0 4px;
+    min-width: 100px;
+    cursor: pointer;
+  }
+
+  .search-type-select:focus {
+    outline: none;
+    background: rgba(255,255,255,0.2);
+  }
+
+  .search-type-select option {
+    background: var(--primary-color);
+    color: white;
+  }
+
+  .search-input {
+    width: 100%;
+    padding: 0.5rem 1rem 0.5rem 110px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    border-radius: 4px;
+    transition: all 0.3s;
+  }
+
+  .search-input:focus {
+    outline: none;
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.3);
+  }
+
+  .search-input::placeholder {
+    color: rgba(255,255,255,0.7);
+  }
+
+  /* Search Results */
+  .search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    z-index: 1000;
+    display: none;
+    max-height: 400px;
+    overflow-y: auto;
+    margin-top: 0.5rem;
+  }
+
+  .search-results.show {
+    display: block;
+  }
+
+  .search-result-item {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .search-result-item:hover {
+    background-color: #f8f9fa;
+    transform: translateX(5px);
+  }
+
+  .search-result-item img {
+    width: 40px;
+    height: 60px;
+    object-fit: cover;
+    margin-right: 1rem;
+    border-radius: 4px;
+  }
+
+  /* User Profile */
+  .user-profile {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .user-profile img {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255,255,255,0.2);
+    transition: border-color 0.3s;
+  }
+
+  .user-profile:hover img {
+    border-color: rgba(255,255,255,0.4);
+  }
+
+  /* Auth Buttons */
+  .auth-buttons {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .auth-buttons .btn {
+    padding: 0.5rem 1.25rem;
+    font-weight: 500;
+    transition: all 0.3s;
+  }
+
+  .btn-outline-light:hover {
+    background-color: rgba(255,255,255,0.1);
+    transform: translateY(-1px);
+  }
+
+  /* Mobile Menu Styles */
+  @media (max-width: 991.98px) {
+    body {
+      overflow-x: hidden;
+    }
+
+    body.menu-open {
+      overflow: hidden;
+    }
+
+    .navbar-collapse {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 280px;
+      background: var(--primary-color);
+      padding: 1rem;
+      z-index: 1050;
+      transform: translateX(-100%);
+      transition: transform 0.3s ease-in-out;
+      display: block !important;
+      overflow-y: auto;
+    }
+
+    .mobile-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1040;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+    }
+
+    body.menu-open .navbar-collapse {
+      transform: translateX(0);
+    }
+
+    body.menu-open .mobile-backdrop {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .close-menu {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      color: white;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0.5rem;
+      z-index: 1;
+    }
+
+    .navbar-nav {
+      margin-top: 3rem;
+    }
+
+    .nav-item {
+      margin: 0.5rem 0;
+    }
+
+    .nav-link {
+      padding: 0.75rem 1rem;
+    }
+
+    .search-container {
+      margin: 1rem 0;
+      order: 1;
+    }
+
+    .navbar-toggler {
+      border: none;
+      padding: 0.5rem;
+      color: white;
+    }
+
+    .navbar-toggler:focus {
+      box-shadow: none;
+    }
+
+    .auth-buttons {
+      margin-top: 1rem;
+      flex-direction: column;
+    }
+
+    .auth-buttons .btn {
+      width: 100%;
+      margin: 0.5rem 0;
+    }
+  }
+</style>
+
+<script>
+  class NavbarManager {
+    constructor() {
+      this.searchInput = document.getElementById('searchInput');
+      this.searchType = document.getElementById('searchType');
+      this.searchResults = document.getElementById('searchResults');
+      this.navbarToggler = document.querySelector('.navbar-toggler');
+      this.closeMenuButton = document.querySelector('.close-menu');
+      this.mobileBackdrop = document.querySelector('.mobile-backdrop');
+      
+      this.initialize();
+    }
+    
+    initialize() {
+      // Search functionality
+      this.searchInput.addEventListener('input', utils.debounce(this.handleSearch.bind(this), 300));
+      this.searchType.addEventListener('change', () => {
+        if (this.searchInput.value.trim().length >= 2) {
+          this.handleSearch({ target: this.searchInput });
+        }
+      });
+      
+      // Mobile menu functionality
+      this.navbarToggler.addEventListener('click', () => this.toggleMenu());
+      this.closeMenuButton.addEventListener('click', () => this.closeMenu());
+      this.mobileBackdrop.addEventListener('click', () => this.closeMenu());
+      
+      // Close menu when clicking nav links on mobile
+      document.querySelectorAll('.navbar-collapse .nav-link').forEach(link => {
+        link.addEventListener('click', () => {
+          if (window.innerWidth < 992) {
+            this.closeMenu();
+          }
+        });
+      });
+      
+      // Close search results when clicking outside
+      document.addEventListener('click', (event) => {
+        if (!event.target.closest('.search-container')) {
+          this.searchResults.classList.remove('show');
+        }
+      });
+      
+      // Handle window resize
+      window.addEventListener('resize', () => {
+        if (window.innerWidth >= 992) {
+          this.closeMenu();
+        }
+      });
+    }
+    
+    async handleSearch(event) {
+      const query = event.target.value.trim();
+      const type = this.searchType.value;
+      
+      if (query.length < 2) {
+        this.searchResults.classList.remove('show');
+        return;
+      }
+      
+      try {
+        utils.showLoading();
+        const response = await fetch(`/api/search/?q=${encodeURIComponent(query)}&type=${type}`);
+        const data = await response.json();
+        
+        if (data.results.length > 0) {
+          this.searchResults.innerHTML = data.results.map(item => `
+            <div class="search-result-item" onclick="window.location.href='${item.url}'">
+              <img src="${item.image}" alt="${item.title}" onerror="utils.handleImageError(this)">
+              <div class="result-info">
+                <h6>${item.title}</h6>
+                <p>${item.subtitle}</p>
+              </div>
+            </div>
+          `).join('');
+        } else {
+          this.searchResults.innerHTML = '<div class="p-3 text-center text-muted">No results found</div>';
+        }
+        this.searchResults.classList.add('show');
+      } catch (error) {
+        console.error('Search error:', error);
+        utils.showToast('Error performing search', 'danger');
+      } finally {
+        utils.hideLoading();
+      }
+    }
+    
+    toggleMenu() {
+      document.body.classList.toggle('menu-open');
+    }
+    
+    closeMenu() {
+      document.body.classList.remove('menu-open');
+    }
+  }
+
+  // Initialize when DOM is loaded
+  document.addEventListener('DOMContentLoaded', () => {
+    new NavbarManager();
+  });
+</script> 
