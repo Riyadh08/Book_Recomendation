@@ -13,12 +13,29 @@
 
         <!-- Main Content (Author Information and Books) -->
         <div class="main-content">
-            <div class="section" id="bio">
-                <h2>{{ author.name }}</h2>
-                <p>Born: {{ author.date_of_birth }}</p>
-                <p>Genre: {{ author.genre }}</p>
-                <p>Notable Works: {{ author.notable_works }}</p>
-                <p>{{ author.biography }}</p>
+            <div class="author-info">
+                <h1 class="author-name">{{ author.name }}</h1>
+                
+                <div class="author-details">
+                    {% if author.date_of_birth %}
+                        <p class="author-dates">
+                            <i class="fas fa-birthday-cake me-2"></i>Born: {{ author.date_of_birth|date:"F j, Y" }}
+                        </p>
+                    {% endif %}
+                    
+                    {% if author.date_of_death %}
+                        <p class="author-dates">
+                            <i class="fas fa-cross me-2"></i>Died: {{ author.date_of_death|date:"F j, Y" }}
+                        </p>
+                    {% endif %}
+                    
+                    {% if author.bio %}
+                        <div class="author-bio mt-3">
+                            <h4>Biography</h4>
+                            <p>{{ author.bio }}</p>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="section" id="books">

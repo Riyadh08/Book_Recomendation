@@ -14,6 +14,9 @@ class Cuser(models.Model):
     user_image = models.ImageField(upload_to='user_images', default='blank-profile-picture.png')
     email = models.EmailField(max_length=255, unique=True)
     password = models.CharField(max_length=255)
+    is_banned = models.BooleanField(default=False)
+    ban_reason = models.TextField(null=True, blank=True)
+    banned_at = models.DateTimeField(null=True, blank=True)
 
     def set_password(self, raw_password):
         self.password = make_password(raw_password)
@@ -31,10 +34,11 @@ class Cuser(models.Model):
 
 # Author Model
 class Author(models.Model):
-    author_id = models.AutoField(primary_key=True)  # Auto-incrementing primary key
-    name = models.CharField(max_length=255)  # Author's name
-    bio = models.TextField(blank=True, null=True)  # Author's biography (optional)
-    date_of_birth = models.DateField(blank=True, null=True)  # Author's date of birth (optional)
+    author_id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+    date_of_birth = models.DateField(null=True, blank=True)
+    date_of_death = models.DateField(null=True, blank=True)
+    bio = models.TextField(null=True, blank=True)
     author_image = models.ImageField(upload_to='author_images', default='blank-profile-picture.png')
 
     def __str__(self):
@@ -48,6 +52,7 @@ class Book(models.Model):
     author_id = models.ForeignKey(Author, on_delete=models.CASCADE)  # Foreign key to Author model
     genre = models.CharField(max_length=100, default='Unknown')  # Genre of the book
     image = models.ImageField(upload_to='book_images', default='blank-profile-picture.png')  # Image of the book
+    created_at = models.DateTimeField(auto_now_add=True)  # New field
 
     def average_rating(self):
         return self.reviews.aggregate(average=Avg('rating'))['average'] or 0
