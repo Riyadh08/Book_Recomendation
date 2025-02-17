@@ -1,0 +1,135 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}{% if book %}Edit Book{% else %}Add New Book{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .book-form-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    .book-image-preview {
+        max-width: 200px;
+        margin-top: 10px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .form-section {
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .image-upload-wrapper {
+        border: 2px dashed #ccc;
+        padding: 20px;
+        text-align: center;
+        border-radius: 8px;
+        margin-bottom: 15px;
+    }
+    .image-upload-wrapper:hover {
+        border-color: #007bff;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="book-form-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{% if book %}Edit Book{% else %}Add New Book{% endif %}</h2>
+        <a href="{% url 'admin_books' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Books
+        </a>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+        {% csrf_token %}
+        {% if book %}
+            <input type="hidden" name="book_id" value="{{ book.book_id }}">
+        {% endif %}
+
+        <div class="form-section">
+            <h4 class="mb-3">Basic Information</h4>
+            
+            <div class="mb-3">
+                <label for="book_name" class="form-label">Book Title</label>
+                <input type="text" class="form-control" id="book_name" name="book_name" 
+                       value="{{ book.book_name|default:'' }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="author_id" class="form-label">Author</label>
+                <select class="form-select" id="author_id" name="author_id" required>
+                    <option value="">Select Author</option>
+                    {% for author in authors %}
+                        <option value="{{ author.author_id }}" 
+                                {% if book and book.author_id.author_id == author.author_id %}selected{% endif %}>
+                            {{ author.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="genre" class="form-label">Genre</label>
+                <input type="text" class="form-control" id="genre" name="genre" 
+                       value="{{ book.genre|default:'' }}" required>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h4 class="mb-3">Book Cover</h4>
+            
+            <div class="image-upload-wrapper" onclick="document.getElementById('image').click();">
+                <i class="fas fa-cloud-upload-alt fa-2x mb-2"></i>
+                <p class="mb-0">Click to upload book cover image</p>
+                <input type="file" class="d-none" id="image" name="image" accept="image/*" 
+                       onchange="previewImage(this);">
+            </div>
+
+            <img id="imagePreview" src="{{ book.image.url|default:'#' }}" 
+                 class="book-image-preview {% if not book.image %}d-none{% endif %}" 
+                 alt="Book cover preview">
+        </div>
+
+        <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-save"></i> 
+                {% if book %}Save Changes{% else %}Create Book{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function previewImage(input) {
+    if (input.files && input.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            $('#imagePreview').attr('src', e.target.result).removeClass('d-none');
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// Form validation
+(function () {
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms).forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault()
+                event.stopPropagation()
+            }
+            form.classList.add('was-validated')
+        }, false)
+    })
+})()
+</script>
+{% endblock %} 

@@ -11,7 +11,14 @@ class Cuser(models.Model):
     user_location = models.CharField(max_length=255)
     user_image = models.ImageField(upload_to='user_images', default='blank-profile-picture.png')
     email = models.EmailField(max_length=255, unique=True)
+<<<<<<< Updated upstream
     password = models.CharField(max_length=255)  # Plain password field (will be hashed before saving)
+=======
+    password = models.CharField(max_length=255)
+    is_banned = models.BooleanField(default=False)
+    ban_reason = models.TextField(null=True, blank=True)
+    banned_at = models.DateTimeField(null=True, blank=True)
+>>>>>>> Stashed changes
 
     def set_password(self, raw_password):
         """Hashes the password before saving it to the database."""
@@ -48,6 +55,7 @@ class Book(models.Model):
     author_id = models.ForeignKey(Author, on_delete=models.CASCADE)  # Foreign key to Author model
     genre = models.CharField(max_length=100, default='Unknown')  # Genre of the book
     image = models.ImageField(upload_to='book_images', default='blank-profile-picture.png')  # Image of the book
+    created_at = models.DateTimeField(auto_now_add=True)  # New field
 
     def __str__(self):
         return self.book_name
