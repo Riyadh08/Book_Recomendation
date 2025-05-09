@@ -1,0 +1,210 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Books Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Books Management</h2>
+    <a href="?new=1" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add New Book
+    </a>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Book Name</th>
+                <th>Author</th>
+                <th>Genre</th>
+                <th>Rating</th>
+                <th>Reviews</th>
+                <th>Added On</th>
+                <th>Marketing Link</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for book in books %}
+            <tr>
+                <td>{{ book.book_name }}</td>
+                <td>{{ book.author_id.name }}</td>
+                <td>{{ book.genre }}</td>
+                <td>{{ book.avg_rating|floatformat:1 }}/5</td>
+                <td>{{ book.review_count }}</td>
+                <td>{{ book.created_at|date:"M d, Y" }}</td>
+                <td>
+                    <a href="{{ book.marketing_link }}" target="_blank" class="text-truncate d-inline-block" style="max-width: 200px;">
+                        {{ book.marketing_link }}
+                    </a>
+                </td>
+                <td>
+                    <div class="btn-group gap-2">
+                        <a href="?edit={{ book.book_id }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" 
+                                data-bs-target="#deleteModal{{ book.book_id }}">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+
+                    <!-- Delete Modal -->
+                    <div class="modal fade" id="deleteModal{{ book.book_id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Delete Book</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>Are you sure you want to delete "{{ book.book_name }}"?</p>
+                                    <p class="text-danger">This action cannot be undone.</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <form method="POST" style="display: inline;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="book_id" value="{{ book.book_id }}">
+                                        <button type="submit" class="btn btn-danger">Delete Book</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if books.has_other_pages %}
+<nav>
+    <ul class="pagination">
+        {% if books.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ books.previous_page_number }}">&laquo;</a>
+        </li>
+        {% endif %}
+        
+        {% for i in books.paginator.page_range %}
+            {% if i <= 5 or i > books.paginator.num_pages|add:"-2" or i == books.number %}
+                <li class="page-item {% if books.number == i %}active{% endif %}">
+                    <a class="page-link" href="?page={{ i }}">{{ i }}</a>
+                </li>
+            {% elif i == 6 and books.number > 7 %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% elif i == books.paginator.num_pages|add:"-2" and books.number < books.paginator.num_pages|add:"-5" %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+        {% endfor %}
+
+        {% if books.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ books.next_page_number }}">&raquo;</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+<!-- Add Book Modal -->
+<div class="modal fade" id="addBookModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Book</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="book_name" class="form-label">Book Name</label>
+                        <input type="text" class="form-control" id="book_name" name="book_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="author" class="form-label">Author</label>
+                        <select class="form-select" id="author" name="author" required>
+                            <option value="" disabled selected>Select Author</option>
+                            {% for author in authors %}
+                            <option value="{{ author.pk }}">{{ author.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="genre" class="form-label">Genre</label>
+                        <input type="text" class="form-control" id="genre" name="genre" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="marketing_link" class="form-label">Marketing Link</label>
+                        <input type="url" class="form-control" id="marketing_link" name="marketing_link" 
+                               value="https://www.rokomari.com/book" 
+                               placeholder="Enter marketing link (e.g., Rokomari)">
+                    </div>
+                    <button type="submit" name="add_book" class="btn btn-primary">Add Book</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Book Modal -->
+<div class="modal fade" id="editBookModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Book</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="hidden" name="book_id" value="{{ book.book_id }}">
+                    <div class="mb-3">
+                        <label for="edit_book_name" class="form-label">Book Name</label>
+                        <input type="text" class="form-control" id="edit_book_name" name="book_name" value="{{ book.book_name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_author" class="form-label">Author</label>
+                        <select class="form-select" id="edit_author" name="author" required>
+                            <option value="{{ book.author_id.pk }}" selected>{{ book.author_id.name }}</option>
+                            {% for author in authors %}
+                            <option value="{{ author.pk }}">{{ author.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_genre" class="form-label">Genre</label>
+                        <input type="text" class="form-control" id="edit_genre" name="genre" value="{{ book.genre }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_marketing_link" class="form-label">Marketing Link</label>
+                        <input type="url" class="form-control" id="edit_marketing_link" name="marketing_link" 
+                               value="{{ book.marketing_link }}"
+                               placeholder="Enter marketing link (e.g., Rokomari)">
+                    </div>
+                    <button type="submit" name="edit_book" class="btn btn-primary">Update Book</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn-group.gap-2 {
+        gap: 0.5rem !important;
+    }
+    .btn-group.gap-2 > .btn {
+        margin-right: 0.5rem;
+    }
+    .btn-group.gap-2 > .btn:last-child {
+        margin-right: 0;
+    }
+</style>
+{% endblock %} 

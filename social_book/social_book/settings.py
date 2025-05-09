@@ -17,6 +17,7 @@ SECRET_KEY = 'django-insecure-gdm(o29jh$!k(e6i_=sm4=f!$+f7m8=to%9#uslalpe=_nt&8a
 DEBUG = True
 
 ALLOWED_HOSTS = []
+# ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
 
 
 # Application definition

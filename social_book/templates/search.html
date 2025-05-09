@@ -4,7 +4,10 @@
 
 {% block body %}
 <div class="container mt-5">
-    <h1 class="text-center mb-4">Search for Books</h1>
+    <h1 class="text-center mb-4">
+        Search for Books
+    </h1>
+
     <div class="row justify-content-center">
         <div class="col-md-6">
             <form action="{% url 'search' %}" method="GET" class="p-4 bg-white shadow rounded">
@@ -19,7 +22,7 @@
                 <div class="mb-3">
                     <label for="genre" class="form-label">Genre</label>
                     <input type="text" id="genre" name="genre" class="form-control" placeholder="Enter the genre">
-                </div>
+                </div> 
                 <div class="text-center">
                     <button type="submit" class="btn btn-primary w-100">Search</button>
                 </div>
@@ -27,35 +30,62 @@
         </div>
     </div>
 
+    {% if messages %}
+    <div class="messages mt-4">
+        {% for message in messages %}
+        <div class="alert alert-{% if message.tags %}{{ message.tags }}{% endif %} text-center">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     {% if results %}
-        <h2 class="text-center mt-5">Search Results</h2>
-        <div class="books-grid" id="books-grid">
-            {% for book in results %}
-            <div class="book-card">
-                <div class="book-cover">
-                    <img src="{{ book.image.url }}" alt="{{ book.book_name }}">
-                </div>
-                <div class="book-info">
-                    <h3 class="book-title">
-                        {% if book.book_id %}
-                        <a href="{% url 'book' book.book_id %}">{{ book.book_name }}</a>
-                        {% else %}
-                        {{ book.book_name }}
-                        {% endif %}
-                    </h3>
-                    <p class="book-author">by <a href="{% url 'author' pk=book.author_id.pk %}">{{ book.author_id.name }}</a></p>
-                    <div class="book-meta">
-                        <span>Genre: {{ book.genre }}</span>
-                        <div class="rating">
-                            <span>Rating: {{ book.avg_rating }} ({{ book.total_ratings }} ratings)</span>
+        <h2 class="text-center mt-5">
+            {% if is_trending %}
+                Trending Searches
+            {% else %}
+                Search Results ({{ total_results }} found)
+            {% endif %}
+        </h2>
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h3 class="card-title mb-0">
+                            <i class="fas fa-search me-2"></i>Search Results
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id ="books-grid">
+                            {% for book in results %}
+                            <div class="col-md-3 mb-3">
+                                <div class="book-card">
+                                    <img src="{{ book.image.url }}" alt="{{ book.book_name }}" class="book-cover">
+                                    <div class="book-info">
+                                        <h6 class="book-title">
+                                            <a href="{% url 'book' book.book_id %}">{{ book.book_name }}</a>
+                                        </h6>
+                                        <p class="book-author">by <a href="{% url 'author' pk=book.author_id.pk %}">{{ book.author_id.name }}</a></p>
+                                        <p class="book-genre">Genre: {{ book.genre }}</p>
+                                          
+                                        {% comment %} <div class="rating">
+                                            <i class="fas fa-star text-warning"></i>
+                                            <span>{{ book.avg_rating|floatformat:1 }} ({{ book.total_ratings }})</span>
+                                        </div> {% endcomment %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
                         </div>
+                        {% if results.has_next %}
+                        <div class="text-center mt-4">
+                            <button id="loadMoreBtn" class="btn btn-primary">Load More Books</button>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
-            {% endfor %}
-        </div>
-        <div class="text-center mt-4">
-            <button id="loadMoreBtn" class="btn btn-primary">Load More Books</button>
         </div>
     {% elif results is not None %}
         <div class="no-results">
@@ -66,205 +96,170 @@
     {% endif %}
 </div>
 
-<style>
-    .books-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 2rem;
-        padding: 2rem;
-        margin: 0 auto;
-        max-width: 1200px;
-    }
+{% if not user.is_authenticated %}
+<div class="guest-banner">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <p class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    You are browsing as a guest. Sign in to access all features including personalized recommendations and reviews.
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="{% url 'signin' %}" class="btn btn-light btn-sm me-2">Sign In</a>
+                <a href="{% url 'signup' %}" class="btn btn-primary btn-sm">Sign Up</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
+<style>
     .book-card {
         background: white;
-        border-radius: 12px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-radius: 8px;
         overflow: hidden;
         transition: transform 0.3s;
         height: 100%;
-        display: flex;
-        flex-direction: column;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
-
+    
     .book-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
     }
-
+    
     .book-cover {
-        height: 200px;
-        overflow: hidden;
-    }
-
-    .book-cover img {
         width: 100%;
-        height: 100%;
+        height: 200px;
         object-fit: cover;
-        transition: transform 0.3s;
     }
-
-    .book-card:hover .book-cover img {
-        transform: scale(1.05);
-    }
-
+    
     .book-info {
-        padding: 1.5rem;
-        flex: 1;
-        display: flex;
-        flex-direction: column;
+        padding: 1rem;
     }
-
+    
     .book-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        margin: 0 0 0.5rem;
-        color: #2c3e50;
-    }
-
-    .book-title a {
-        color: inherit;
-        text-decoration: none;
-    }
-
-    .book-title a:hover {
-        color: var(--primary-color);
-    }
-
-    .book-author {
-        font-size: 1rem;
-        color: #666;
-        margin-bottom: 1rem;
-    }
-
-    .book-author a {
-        color: var(--primary-color);
-        text-decoration: none;
-    }
-
-    .book-author a:hover {
-        text-decoration: underline;
-    }
-
-    .book-meta {
-        margin-top: auto;
         font-size: 0.9rem;
-        color: #777;
+        margin-bottom: 0.5rem;
+        line-height: 1.2;
     }
-
-    .rating {
-        margin-top: 0.5rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .no-results {
-        text-align: center;
-        padding: 4rem 2rem;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin: 2rem auto;
-        max-width: 500px;
-    }
-
-    .no-results i {
-        color: #ddd;
-        margin-bottom: 1rem;
-    }
-
-    .no-results h3 {
-        color: #2c3e50;
+    
+    .author {
+        font-size: 0.8rem;
+        color: #666;
         margin-bottom: 0.5rem;
     }
-
-    .no-results p {
-        color: #666;
+    
+    .rating {
+        font-size: 0.8rem;
+    }
+    
+    .guest-banner {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 1rem 0;
+        z-index: 1000;
+    }
+    
+    .guest-banner p {
+        font-size: 0.9rem;
+    }
+    
+    .guest-banner .btn {
+        padding: 0.375rem 1rem;
     }
 
-    #loadMoreBtn {
-        padding: 0.75rem 2rem;
-        font-size: 1.1rem;
-        transition: all 0.3s;
-    }
-
-    #loadMoreBtn:hover {
-        transform: translateY(-2px);
-    }
-
-    @media (max-width: 768px) {
-        .books-grid {
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            padding: 1rem;
-            gap: 1rem;
-        }
-
-        .book-info {
-            padding: 1rem;
-        }
+    .card {
+        border: none;
+        box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        border-radius: 10px;
+        margin-bottom: 2rem;
     }
 </style>
-
 <script>
     let currentPage = 1;
-    let hasNextPage = true;
+    let hasNextPage = {{ results.has_next|yesno:"true,false" }};
+    let isLoading = false;
 
-    // Get search parameters from the form
     function getSearchParams() {
-        const bookName = document.getElementById('book_name').value;
-        const author = document.getElementById('author').value;
-        const genre = document.getElementById('genre').value;
-        return new URLSearchParams({
-            book_name: bookName,
-            author: author,
-            genre: genre,
-            page: currentPage,
-        }).toString();
+        const params = new URLSearchParams(window.location.search);
+        params.set('page', currentPage + 1);  // Load next page
+        return params.toString();
     }
 
     function loadBooks() {
+        if (isLoading || !hasNextPage) return;
+        isLoading = true;
+
         const params = getSearchParams();
-        fetch(`/search?${params}`, {
+        const url = `{% if is_trending %}{% url 'trending_searches' %}{% else %}{% url 'search' %}{% endif %}?${params}`;
+
+        fetch(url, {
             method: 'GET',
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-        .then(response => response.json())
-        .then(data => {
-            const booksGrid = document.getElementById('books-grid');
-            data.books.forEach(book => {
-                const bookCard = document.createElement('div');
-                bookCard.className = 'book-card';
-                bookCard.innerHTML = `
-                    <div class="book-cover">
-                        <img src="${book.image}" alt="${book.book_name}">
-                    </div>
-                    <div class="book-info">
-                        <h3 class="book-title">
-                            <a href="/book/${book.book_id}/">${book.book_name}</a>
-                        </h3>
-                        <p class="book-author">by <a href="/author/${book.author_id}/">${book.author_name}</a></p>
-                        <div class="book-meta">
-                            <span>Genre: ${book.genre}</span>
-                            <div class="rating">
-                                <span>Rating: ${book.avg_rating} (${book.total_ratings} ratings)</span>
-                            </div>
-                        </div>
-                    </div>`;
-                booksGrid.appendChild(bookCard);
-            });
-            hasNextPage = data.has_next;
-            if (!hasNextPage) {
-                document.getElementById('loadMoreBtn').style.display = 'none';
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Network response was not ok");
             }
+            return response.json();
+        })
+        .then(data => {
+            if (data.books && Array.isArray(data.books)) {
+                const booksGrid = document.getElementById('books-grid');
+
+                data.books.forEach(book => {
+                    const bookCard = document.createElement('div');
+                    bookCard.className = 'book-card';
+                    bookCard.innerHTML = `
+                        <img src="${book.image || '/static/assets/default-book.jpg'}" 
+                             alt="${book.book_name}" class="book-cover">
+                        <div class="book-info">
+                            <h6 class="book-title">
+                                <a href="/book/${book.book_id}/">${book.book_name}</a>
+                            </h6>
+                            <p class="book-author">
+                                by <a href="/author/${book.author_id}/">${book.author_name}</a>
+                            </p>
+                             <p class="book-genre">Genre: ${book.genre || 'Unknown'}</p>
+                        </div>
+                    `;
+
+                    const colDiv = document.createElement('div');
+                    colDiv.className = 'col-md-3 mb-3';
+                    colDiv.appendChild(bookCard);
+
+                    booksGrid.appendChild(colDiv);
+                });
+
+                hasNextPage = data.has_next;
+                currentPage++;
+
+                if (!hasNextPage) {
+                    const btn = document.getElementById('loadMoreBtn');
+                    if (btn) btn.style.display = 'none';
+                }
+            }
+        })
+        .catch(error => {
+            console.error("Fetch error:", error);
+            // Optional: Show user-friendly alert in the UI
+            alert("Oops! Something went wrong while loading more books.");
+        })
+        .finally(() => {
+            isLoading = false;
         });
     }
 
-    document.getElementById('loadMoreBtn').addEventListener('click', () => {
-        if (hasNextPage) {
-            currentPage++;
-            loadBooks();
-        }
-    });
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', loadBooks);
+    }
 </script>
+
 {% endblock body %}

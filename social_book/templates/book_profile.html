@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Books{% endblock title %}
+{% block title %}{{ book.book_name }}{% endblock title %}
 
 {% block body %}
 <div class="container mt-5">
@@ -9,21 +9,41 @@
             <div class="left-sidebar text-center me-4">
                 <!-- Dynamically display the book cover image -->
                 <img src="{{ book.image.url }}" alt="{{ book.book_name }}" class="rounded mb-3 book-image">
+                <div class="buy-section mb-3">
+                    <a href="{{ book.marketing_link }}" target="_blank" class="btn btn-success">
+                        <i class="fas fa-shopping-cart me-2"></i>Buy from Rokomari
+                    </a>
+                </div>
                 <p><strong>Rating:</strong> {{ book.average_rating|floatformat:1 }} ({{ book.total_ratings }} ratings)</p>
                 {% comment %} <p><strong>Rating:</strong> {{ book.average_rating }} ({{ book.total_ratings }} ratings)</p> {% endcomment %}
                 {% comment %} <p><a href="#" class="text-primary">Edit My Activity</a></p> {% endcomment %}
+
+                {% if user.is_authenticated %}
+                <div class="reading-status-section mb-3">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-primary dropdown-toggle" type="button" id="readingStatusDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-book me-2"></i>Reading Status
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="readingStatusDropdown">
+                            <li><a class="dropdown-item" href="#" onclick="updateReadingStatus('read')">Read</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="updateReadingStatus('reading')">Currently Reading</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="updateReadingStatus('want_to_read')">Want to Read</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="updateReadingStatus('remove')">Remove from List</a></li>
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
             </div>
             <div class="right-content flex-grow-1">
                 <!-- Dynamically display the book title -->
                 <h1 class="mb-3">{{ book.book_name }}</h1>
 
-                <!-- Dynamically display the author's name -->
-                <p><strong>Author:</strong> {{ book.author_id.name }}</p>
-
+                <p><strong>Author:</strong> <a href="{% url 'author' book.author_id.pk %}">{{ book.author_id.name }}</a></p>
                 <!-- Dynamically display the book's genres -->
                 <p><strong>Genres:</strong> {{ book.genre }}</p>
 
                 <!-- Add Review Section -->
+                {% if user.is_authenticated %}
                 <h2 class="mt-4">Add Your Review</h2>
                 <form id="reviewForm" class="mb-4">
                     <div class="mb-3">
@@ -42,6 +62,12 @@
                     </div>
                     <button type="submit" class="btn btn-success">Submit Review</button>
                 </form>
+                {% else %}
+                <div class="alert alert-info mt-4">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <a href="{% url 'signin' %}" class="alert-link">Sign in</a> to add your review
+                </div>
+                {% endif %}
 
                 <!-- Ratings and Reviews Section -->
                 <h2 class="mt-4">Ratings & Reviews</h2>
@@ -55,6 +81,25 @@
         </div>
     </div>
 </div>
+
+{% if not user.is_authenticated %}
+<div class="guest-banner">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <p class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Sign in to add reviews and access more features.
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="{% url 'signin' %}" class="btn btn-light btn-sm me-2">Sign In</a>
+                <a href="{% url 'signup' %}" class="btn btn-primary btn-sm">Sign Up</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <script>
     const bookId = "{{ book.book_id }}";  // Pass book_id to JavaScript
@@ -74,7 +119,9 @@
                     reviewDiv.innerHTML = `
                         <img src="${review.profile || '/media/blank-profile-picture.png'}" alt="${review.user}" class="rounded-circle me-3" style="width: 50px; height: 50px;">
                         <div class="review-info flex-grow-1">
-                            <h4 class="mb-1">${review.user}</h4>
+                            <h4 class="mb-1">
+                                <a href="/profile/${review.user}/" class="text-decoration-none text-dark reviewer-name">${review.user}</a>
+                            </h4>
                             <p class="mb-1">${review.review_text}</p>
                         </div>
                         <div class="star-rating" style="--rating: ${review.rating};"></div>
@@ -134,6 +181,41 @@
             }
         });
     });
+
+    // Add this to your existing JavaScript
+    function updateReadingStatus(status) {
+        fetch(`/book/${bookId}/update-reading-status/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify({ status: status }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Error updating reading status: ' + error);
+        });
+    }
+
+    // Get current reading status when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch(`/book/${bookId}/get-reading-status/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.status) {
+                    const dropdownButton = document.getElementById('readingStatusDropdown');
+                    dropdownButton.innerHTML = `<i class="fas fa-book me-2"></i>${data.status.charAt(0).toUpperCase() + data.status.slice(1)}`;
+                }
+            });
+    });
 </script>
 
 <style>
@@ -168,6 +250,68 @@
         width: calc(var(--rating) * 20%);
     }
     
+    .buy-section {
+        width: 100%;
+    }
+    
+    .buy-section .btn {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        width: 100%;
+        border-radius: 8px;
+        transition: all 0.3s;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .buy-section .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    .guest-banner {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 1rem 0;
+        z-index: 1000;
+    }
+    
+    .guest-banner p {
+        font-size: 0.9rem;
+    }
+    
+    .guest-banner .btn {
+        padding: 0.375rem 1rem;
+    }
+
+    .reading-status-section {
+        margin-top: 1rem;
+    }
+
+    .reading-status-section .dropdown-toggle {
+        width: 100%;
+        text-align: left;
+        padding: 0.5rem 1rem;
+    }
+
+    .reading-status-section .dropdown-toggle::after {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    .reviewer-name {
+        transition: color 0.2s ease;
+    }
+    
+    .reviewer-name:hover {
+        color: #0d6efd !important;
+        text-decoration: underline !important;
+    }
 </style>
 
 {% endblock body %}

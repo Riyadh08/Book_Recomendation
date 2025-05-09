@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Social Book{% endblock title %}
+{% block title %}Dashboard - Pathok Prantor{% endblock title %}
 
 {% block body %}
 <div class="container">
-    <!-- Welcome Section -->
+    {% if not is_guest %}
+    <!-- Welcome Section for authenticated users -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card bg-primary text-white">
@@ -18,8 +19,10 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <div class="row">
+        {% if not is_guest %}
         <!-- Recent Reviews from Following -->
         <div class="col-md-8">
             <div class="card mb-4">
@@ -34,7 +37,12 @@
                                 <img src="{{ review.user_id.cuser.user_image.url }}" alt="User" class="rounded-circle me-2" style="width: 40px; height: 40px; object-fit: cover;">
                                 <div class="flex-grow-1">
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <h5 class="mb-1">{{ review.user_id.username }}</h5>
+                                        {% comment %} <h5 class="mb-1">{{ review.user_id.username }}</h5> {% endcomment %}
+                                        <h5 class="mb-1">
+                                            <a href="{% url 'user_profile' username=review.user_id.username %}" class="text-decoration-none">
+                                                {{ review.user_id.username }}
+                                            </a>
+                                        </h5>
                                         <small class="text-muted">{{ review.created_at|timesince }} ago</small>
                                     </div>
                                     <div class="mb-2">
@@ -67,9 +75,10 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
-        <!-- Right Sidebar -->
-        <div class="col-md-4">
+        <!-- Books Sections -->
+        <div class="col-md-{% if is_guest %}12{% else %}4{% endif %}">
             <!-- Popular Books -->
             <div class="card mb-4">
                 <div class="card-header bg-white">
@@ -77,22 +86,23 @@
                 </div>
                 <div class="card-body">
                     {% if popular_books %}
+                        <div class="row">
                         {% for book in popular_books %}
-                        <div class="popular-book mb-3">
-                            <div class="d-flex align-items-center">
-                                <img src="{{ book.image.url }}" alt="{{ book.book_name }}" class="me-3" style="width: 60px; height: 90px; object-fit: cover;">
-                                <div>
-                                    <h6 class="mb-1"><a href="{% url 'book' book.pk %}" class="text-decoration-none">{{ book.book_name }}</a></h6>
-                                    <p class="mb-1 text-muted small">by {{ book.author_id.name }}</p>
-                                    <div class="text-warning small">
-                                        <i class="fas fa-star"></i>
+                        <div class="col-md-{% if is_guest %}3{% else %}12{% endif %} mb-3">
+                            <div class="book-card">
+                                <img src="{{ book.image.url }}" alt="{{ book.book_name }}" class="book-cover">
+                                <div class="book-info">
+                                    <h6 class="book-title"><a href="{% url 'book' book.pk %}">{{ book.book_name }}</a></h6>
+                                    <p class="book-author">by <a href="{% url 'author' pk=book.author_id.pk %}">{{ book.author_id.name }}</a></p>
+                                    <div class="rating">
+                                        <i class="fas fa-star text-warning"></i>
                                         <span>{{ book.average_rating|floatformat:1 }}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        {% if not forloop.last %}<hr>{% endif %}
                         {% endfor %}
+                        </div>
                     {% else %}
                         <p class="text-muted text-center py-3">No popular books available.</p>
                     {% endif %}
@@ -106,19 +116,19 @@
                 </div>
                 <div class="card-body">
                     {% if new_books %}
+                        <div class="row">
                         {% for book in new_books %}
-                        <div class="new-book mb-3">
-                            <div class="d-flex align-items-center">
-                                <img src="{{ book.image.url }}" alt="{{ book.book_name }}" class="me-3" style="width: 60px; height: 90px; object-fit: cover;">
-                                <div>
-                                    <h6 class="mb-1"><a href="{% url 'book' book.pk %}" class="text-decoration-none">{{ book.book_name }}</a></h6>
-                                    <p class="mb-1 text-muted small">by {{ book.author_id.name }}</p>
-                                    <p class="mb-0 small text-muted">{{ book.genre }}</p>
+                        <div class="col-md-{% if is_guest %}3{% else %}12{% endif %} mb-3">
+                            <div class="book-card">
+                                <img src="{{ book.image.url }}" alt="{{ book.book_name }}" class="book-cover">
+                                <div class="book-info">
+                                    <h6 class="book-title"><a href="{% url 'book' book.pk %}">{{ book.book_name }}</a></h6>
+                                    <p class="book-author">by <a href="{% url 'author' pk=book.author_id.pk %}">{{ book.author_id.name }}</a></p>
                                 </div>
                             </div>
                         </div>
-                        {% if not forloop.last %}<hr>{% endif %}
                         {% endfor %}
+                        </div>
                     {% else %}
                         <p class="text-muted text-center py-3">No new releases available.</p>
                     {% endif %}
@@ -128,39 +138,88 @@
     </div>
 </div>
 
+{% if is_guest %}
+<div class="guest-banner">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <p class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    You are browsing as a guest. Sign in to access all features including personalized recommendations and reviews.
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="{% url 'signin' %}" class="btn btn-light btn-sm me-2">Sign In</a>
+                <a href="{% url 'signup' %}" class="btn btn-primary btn-sm">Sign Up</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <style>
     .card {
         border: none;
         box-shadow: 0 0 15px rgba(0,0,0,0.1);
         border-radius: 10px;
+        margin-bottom: 2rem;
     }
-    .card-header {
-        border-bottom: 1px solid rgba(0,0,0,0.1);
-        padding: 1rem;
-    }
-    .card-title {
-        font-size: 1.25rem;
-        color: #2c3e50;
-    }
-    .review-card {
-        transition: all 0.3s ease;
-        padding: 1rem;
+    
+    .book-card {
+        background: white;
         border-radius: 8px;
+        overflow: hidden;
+        transition: transform 0.3s;
+        height: 100%;
     }
-    .review-card:hover {
-        background-color: #f8f9fa;
+    
+    .book-card:hover {
+        transform: translateY(-5px);
     }
-    .popular-book, .new-book {
-        transition: all 0.3s ease;
+    
+    .book-cover {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
     }
-    .popular-book:hover, .new-book:hover {
-        transform: translateX(5px);
+    
+    .book-info {
+        padding: 1rem;
     }
-    a {
-        color: #2c3e50;
+    
+    .book-title {
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+        line-height: 1.2;
     }
-    a:hover {
-        color: #3498db;
+    
+    .author {
+        font-size: 0.8rem;
+        color: #666;
+        margin-bottom: 0.5rem;
+    }
+    
+    .rating {
+        font-size: 0.8rem;
+    }
+    
+    .guest-banner {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 1rem 0;
+        z-index: 1000;
+    }
+    
+    .guest-banner p {
+        font-size: 0.9rem;
+    }
+    
+    .guest-banner .btn {
+        padding: 0.375rem 1rem;
     }
 </style>
 {% endblock body %}

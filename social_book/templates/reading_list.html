@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}{% if viewed_user == user %}My Reading List{% else %}{{ viewed_user.username }}'s Reading List{% endif %}{% endblock title %}
+
+{% block body %}
+<div class="container py-4">
+    <h1 class="mb-4">
+        {% if viewed_user == user %}
+            My Reading List
+        {% else %}
+            {{ viewed_user.username }}'s Reading List
+        {% endif %}
+    </h1>
+    
+    <!-- Reading Status Summary -->
+    <div class="row text-center mb-4">
+        <div class="col-md-4">
+            <div class="reading-status-box">
+                <h3>{{ read_books.count }}</h3>
+                <p class="text-muted">Read</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="reading-status-box">
+                <h3>{{ reading_books.count }}</h3>
+                <p class="text-muted">Currently Reading</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="reading-status-box">
+                <h3>{{ want_to_read_books.count }}</h3>
+                <p class="text-muted">Want to Read</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Read Books Section -->
+    <div class="mb-5">
+        <h2 class="mb-3">Read Books</h2>
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            {% for status in read_books %}
+            <div class="col">
+                <div class="card h-100">
+                    <img src="{{ status.book.image.url }}" class="card-img-top" alt="{{ status.book.book_name }}">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ status.book.book_name }}</h5>
+                        <p class="card-text">by {{ status.book.author_id.name }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{% url 'book' status.book.pk %}" class="btn btn-primary">View Book</a>
+                            {% if is_own_list %}
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    Update Status
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#" onclick="updateStatus({{ status.book.pk }}, 'reading')">Currently Reading</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="updateStatus({{ status.book.pk }}, 'want_to_read')">Want to Read</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="updateStatus({{ status.book.pk }}, 'remove')">Remove</a></li>
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <p class="text-center text-muted">No books marked as read.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Currently Reading Section -->
+    <div class="mb-5">
+        <h2 class="mb-3">Currently Reading</h2>
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            {% for status in reading_books %}
+            <div class="col">
+                <div class="card h-100">
+                    <img src="{{ status.book.image.url }}" class="card-img-top" alt="{{ status.book.book_name }}">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ status.book.book_name }}</h5>
+                        <p class="card-text">by {{ status.book.author_id.name }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{% url 'book' status.book.pk %}" class="btn btn-primary">View Book</a>
+                            {% if is_own_list %}
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    Update Status
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#" onclick="updateStatus({{ status.book.pk }}, 'read')">Mark as Read</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="updateStatus({{ status.book.pk }}, 'want_to_read')">Want to Read</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="updateStatus({{ status.book.pk }}, 'remove')">Remove</a></li>
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <p class="text-center text-muted">No books currently being read.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Want to Read Section -->
+    <div class="mb-5">
+        <h2 class="mb-3">Want to Read</h2>
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            {% for status in want_to_read_books %}
+            <div class="col">
+                <div class="card h-100">
+                    <img src="{{ status.book.image.url }}" class="card-img-top" alt="{{ status.book.book_name }}">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ status.book.book_name }}</h5>
+                        <p class="card-text">by {{ status.book.author_id.name }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{% url 'book' status.book.pk %}" class="btn btn-primary">View Book</a>
+                            {% if is_own_list %}
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    Update Status
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#" onclick="updateStatus({{ status.book.pk }}, 'reading')">Currently Reading</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="updateStatus({{ status.book.pk }}, 'read')">Mark as Read</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="updateStatus({{ status.book.pk }}, 'remove')">Remove</a></li>
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <p class="text-center text-muted">No books in want to read list.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+function updateStatus(bookId, status) {
+    fetch(`/book/${bookId}/update-reading-status/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}',
+        },
+        body: JSON.stringify({ status: status }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload(); // Reload the page to show updated status
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error updating status: ' + error);
+    });
+}
+</script>
+
+<style>
+.card {
+    transition: transform 0.2s;
+    border: none;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.card-img-top {
+    height: 200px;
+    object-fit: cover;
+}
+
+.reading-status-box {
+    padding: 1rem;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.reading-status-box:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.reading-status-box h3 {
+    margin: 0;
+    font-size: 2rem;
+    color: #0d6efd;
+}
+
+.reading-status-box p {
+    margin: 0.5rem 0 0;
+    font-size: 0.9rem;
+}
+
+h2 {
+    color: #333;
+    font-size: 1.5rem;
+    font-weight: 600;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #f0f0f0;
+}
+</style>
+{% endblock body %} 

@@ -1,0 +1,119 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Authors Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Authors Management</h2>
+    <a href="?new=1" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add New Author
+    </a>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Date of Birth</th>
+                <th>Books</th>
+                <th>Avg Rating</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for author in authors %}
+            <tr>
+                <td>{{ author.name }}</td>
+                <td>{{ author.date_of_birth|date:"M d, Y"|default:"-" }}</td>
+                <td>{{ author.book_count }}</td>
+                <td>{{ author.avg_rating|floatformat:1|default:"-" }}/5</td>
+                <td>
+                    <div class="btn-group gap-2">
+                        <a href="?edit={{ author.author_id }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" 
+                                data-bs-target="#deleteModal{{ author.author_id }}">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+
+                    <!-- Delete Modal -->
+                    <div class="modal fade" id="deleteModal{{ author.author_id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Delete Author</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>Are you sure you want to delete "{{ author.name }}"?</p>
+                                    <p class="text-danger">
+                                        <strong>Warning:</strong> This will also delete all books by this author!
+                                    </p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <form method="POST" style="display: inline;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="author_id" value="{{ author.author_id }}">
+                                        <button type="submit" class="btn btn-danger">Delete Author</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if authors.has_other_pages %}
+<nav>
+    <ul class="pagination">
+        {% if authors.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ authors.previous_page_number }}">&laquo;</a>
+        </li>
+        {% endif %}
+        
+        {% for i in authors.paginator.page_range %}
+            {% if i <= 5 or i > authors.paginator.num_pages|add:"-2" or i == authors.number %}
+                <li class="page-item {% if authors.number == i %}active{% endif %}">
+                    <a class="page-link" href="?page={{ i }}">{{ i }}</a>
+                </li>
+            {% elif i == 6 and authors.number > 7 %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% elif i == authors.paginator.num_pages|add:"-2" and authors.number < authors.paginator.num_pages|add:"-5" %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+        {% endfor %}
+
+        {% if authors.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ authors.next_page_number }}">&raquo;</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn-group.gap-2 {
+        gap: 0.5rem !important;
+    }
+    .btn-group.gap-2 > .btn {
+        margin-right: 0.5rem;
+    }
+    .btn-group.gap-2 > .btn:last-child {
+        margin-right: 0;
+    }
+</style>
+{% endblock %} 

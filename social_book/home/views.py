@@ -1,22 +1,83 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages, auth
-from .models import Cuser,Book,Author,Review,FollowAuthor
 from django.contrib.auth.decorators import login_required
-from datetime import datetime, timedelta
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-import json
-from django.db.models import Avg, Q, Count
-from django.utils import timezone
 from django.urls import reverse
+from django.db import transaction
+from django.db.models import Avg, Q, Count, Sum, FloatField, ExpressionWrapper
+from django.utils import timezone
+from django.core.files.base import File
+from django.conf import settings
+from django.db import models
+from datetime import datetime, timedelta
+from urllib.parse import unquote
+import json
+import csv
+import os
+import logging
+import pandas as pd
+from functools import wraps
 
-@login_required(login_url='signin')
+from .models import Cuser, Book, Author, Review, FollowAuthor, RecentSearch, ReadingStatus
+
+
+logger = logging.getLogger(__name__)
+
+def user_login_required(view_func):
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        # Check if admin is trying to access user pages
+        if request.session.get('is_admin'):
+            messages.error(request, 'Please log out of admin panel to access user pages')
+            return redirect('admin_dashboard')
+        # List of views that don't require authentication
+        public_views = ['book', 'author', 'search', 'trending_searches', 'index']
+        
+        # Get the view name from the function
+        view_name = view_func.__name__
+        
+        # Allow access to public views without authentication
+        if view_name in public_views:
+            return view_func(request, *args, **kwargs)
+        
+        # Check if user is authenticated
+        if not request.user.is_authenticated:
+            # Store the requested URL in session for redirect after login
+            request.session['next'] = request.get_full_path()
+            return redirect('signin')
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
+@user_login_required
 def index(request):
-    # Get authors followed by the user
+    # Handle guest user
+    if request.GET.get('guest') == 'true' and not request.user.is_authenticated:
+        # Get popular books (books with highest average rating and minimum 3 reviews)
+        popular_books = Book.objects.annotate(
+            avg_rating=Avg('reviews__rating'),
+            num_reviews=Count('reviews')
+        ).filter(
+            num_reviews__gte=3
+        ).order_by('-avg_rating')[:8]
+
+        # Get new books (added in the last 30 days)
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        new_books = Book.objects.all().order_by('-created_at')[:6]
+
+        context = {
+            'popular_books': popular_books,
+            'new_books': new_books,
+            'is_guest': True
+        }
+        
+        return render(request, 'index.html', context)
+
+    # Regular authenticated user view...
     followed_authors = Author.objects.filter(followers__follower=request.user)
-    
+   # print(followed_authors)
     # Get recent reviews from users following the same authors
     recent_reviews = Review.objects.filter(
         Q(book_id__author_id__in=followed_authors) |  # Reviews of followed authors' books
@@ -26,7 +87,7 @@ def index(request):
         'book_id',
         'book_id__author_id',
         'user_id__cuser'
-    ).order_by('-created_at')[:10]
+    ).order_by('-created_at')[:30]
 
     # Get popular books (books with highest average rating and minimum 3 reviews)
     popular_books = Book.objects.annotate(
@@ -35,21 +96,18 @@ def index(request):
     ).filter(
         num_reviews__gte=3
     ).order_by('-avg_rating')[:8]
-
+   # print(request.user)
     # Get new books (added in the last 30 days)
     thirty_days_ago = timezone.now() - timedelta(days=30)
-    new_books = Book.objects.filter(
-        reviews__created_at__gte=thirty_days_ago
-    ).annotate(
-        avg_rating=Avg('reviews__rating'),
-        num_reviews=Count('reviews')
-    ).distinct().order_by('-reviews__created_at')[:8]
+
+# Fetch the 10 most recently added books from the last 30 days
+    new_books = Book.objects.all().order_by('-created_at')[:6]  # Order by newest first and limit to 10
 
     # Get followed authors' recent books
     followed_books = Book.objects.filter(
         author_id__in=followed_authors
     ).order_by('-reviews__created_at').distinct()[:5]
-
+   # print(new_books)
     context = {
         'recent_reviews': recent_reviews,
         'popular_books': popular_books,
@@ -70,7 +128,7 @@ def signup(request):
         date_of_birth = request.POST['user_date_of_birth']
         gender = request.POST['user_gender']
         location = request.POST['user_location']
-        user_image = request.FILES.get('user_image')  # Handle image upload
+        image = request.FILES.get('user_image')  # Handle image upload
 
         # Password match validation
         if password1 != password2:
@@ -101,7 +159,7 @@ def signup(request):
             user_date_of_birth=dob,
             user_gender=gender,
             user_location=location,
-            user_image=user_image
+            user_image=image
         )
         cuser.save()
 
@@ -117,37 +175,68 @@ def signup(request):
 
 def signin(request):
     if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['password']
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        
+        try:
+            with transaction.atomic():
+                # Check if the user is admin
+                if username == 'admin' and password == '1234':
+                    # Set a session variable to indicate admin login
+                    request.session['is_admin'] = True
+                    return redirect('/myadmin/dashboard/')
 
-        user = auth.authenticate(username=username, password=password)
+                # Authenticate regular users
+                user = auth.authenticate(username=username, password=password)
+                
+                if user is not None:
+                    # Check if user is banned
+                    try:
+                        cuser = Cuser.objects.get(user=user)
+                        if cuser.is_banned:
+                            messages.error(request, f'Your account has been banned. Reason: {cuser.ban_reason}')
+                            return render(request, 'signin.html')
+                    except Cuser.DoesNotExist:
+                        pass
+                    
+                    auth.login(request, user)
+                    # Redirect to stored 'next' URL if it exists
+                    next_url = request.session.get('next')
+                    if next_url:
+                        del request.session['next']
+                        return redirect(next_url)
+                    return redirect('index')
+                else:
+                    messages.error(request, 'Invalid credentials')
+                    return render(request, 'signin.html')
+                    
+        except Exception as e:
+            messages.error(request, 'An error occurred. Please try again.')
+            return render(request, 'signin.html')
+            
+    # If user is already logged in, redirect to index
+    if request.user.is_authenticated:
+        return redirect('index')
+        
+    return render(request, 'signin.html')
+     
 
-        if user is not None:
-            auth.login(request, user)
-            return redirect('/')
-        else:
-            messages.info(request, 'Invalid credentials...')
-            return redirect('signin')
-    else:
-        return render(request, 'signin.html')
-    
-
-
-@login_required(login_url='signin')
+@user_login_required
 def logout(request):
-    auth.logout(request)
-    return redirect('signin')
-
-
+    try:
+        with transaction.atomic():
+            auth.logout(request)
+            return redirect('signin')
+    except Exception as e:
+        messages.error(request, 'An error occurred during logout. Please try again.')
+        return redirect('index')
 
 
 # @login_required(login_url='signin')
 # def profile(request,pk):
 #     return render(request, 'profile.html')
 
-
-
-@login_required(login_url='signin')
+@user_login_required
 def search(request):
     results = Book.objects.all()
 
@@ -156,17 +245,44 @@ def search(request):
     author_name = request.GET.get('author', '').strip()
     genre = request.GET.get('genre', '').strip()
 
-    query = Q()
-    if book_name:
-        query &= Q(book_name__icontains=book_name)
-    if author_name:
-        query &= Q(author_id__name__icontains=author_name)
-    if genre:
-        query &= Q(genre__icontains=genre)
+    # Check if any parameters were submitted but all are empty
+    if request.GET and not any([book_name, author_name, genre]):
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'error': 'No search parameters provided'}, status=400)
+        messages.error(request, 'Please fill at least one search parameter')
+        return render(request, 'search.html', {'results': None})
 
-    results = results.filter(query).annotate(avg_rating=Avg('reviews__rating')).order_by('-avg_rating')
+    # If any search parameter is provided
+    if any([book_name, author_name, genre]):
+        query = Q()
+        if book_name:
+            query &= Q(book_name__icontains=book_name)
+        if author_name:
+            query &= Q(author_id__name__icontains=author_name)
+        if genre:
+            query &= Q(genre__icontains=genre)
 
-    paginator = Paginator(results, 5)
+        results = results.filter(query).order_by('-created_at')
+        try:
+            if request.user.is_authenticated:
+                user = request.user
+                for book in results[:50]:
+                    with transaction.atomic():
+                        obj, created = RecentSearch.objects.get_or_create(
+                            user=user,
+                            book=book,
+                            defaults={'search_count': 1, 'created_at': timezone.now()}
+                        )
+                        if not created:
+                            obj.search_count += 1
+                            obj.created_at = timezone.now()
+                            obj.save()
+        except Exception as e:
+            print(f"Error updating recent searches: {e}")
+    else:
+        return render(request, 'search.html', {'results': None})
+
+    paginator = Paginator(results, 10)  # Increased items per page
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
 
@@ -178,26 +294,84 @@ def search(request):
             'author_id': book.author_id.pk,
             'author_name': book.author_id.name,
             'genre': book.genre,
-            'avg_rating': book.avg_rating or 0,
+            'avg_rating': book.average_rating(),
+            'total_ratings': book.reviews.count(),
+        } for book in page_obj]
+        return JsonResponse({
+            'books': books_data, 
+            'has_next': page_obj.has_next(),
+            'total_results': results.count()
+        })
+
+    return render(request, 'search.html', {
+        'results': page_obj,
+        'total_results': results.count() if results else 0
+    })
+
+
+@user_login_required
+def trending_searches(request):
+    # Annotate each book with total search_count and unique user count, then calculate average_count
+    trending = (
+        RecentSearch.objects
+        .values('book')
+        .annotate(
+            total_search_count=Sum('search_count'),
+            unique_user_count=Count('user', distinct=True),
+            average_count=ExpressionWrapper(
+                Sum('search_count') / Count('user', distinct=True),
+                output_field=FloatField()
+            )
+        )
+        .order_by('-average_count', '-total_search_count')[:50]
+    )
+    # Get the book IDs in order
+    book_ids = [item['book'] for item in trending]
+    # Fetch book objects and preserve order
+    books = list(Book.objects.filter(pk__in=book_ids))
+    books_dict = {book.pk: book for book in books}
+    # Prepare the trending list in the correct order
+    trending_books = [books_dict[book_id] for book_id in book_ids if book_id in books_dict]
+
+    paginator = Paginator(trending_books, 5)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        books_data = [{
+            'book_id': book.pk,
+            'book_name': book.book_name,
+            'image': book.image.url if book.image else '',
+            'author_id': book.author_id.pk,
+            'author_name': book.author_id.name,
+            'genre': book.genre,
+            'avg_rating': book.average_rating(),
             'total_ratings': book.reviews.count(),
         } for book in page_obj]
         return JsonResponse({'books': books_data, 'has_next': page_obj.has_next()})
 
-    return render(request, 'search.html', {'results': page_obj})
+    return render(request, 'search.html', {
+        'results': page_obj,
+        'is_trending': True
+    })
 
 
-from django.core.paginator import Paginator
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
-from django.contrib.auth.decorators import login_required
-
-@login_required(login_url='signin')
+@user_login_required
 def author(request, pk):
     author = get_object_or_404(Author, pk=pk)
     books = Book.objects.filter(author_id=author).annotate(average_rating=Avg('reviews__rating')).order_by('-average_rating')
-    return render(request, 'author_profile.html', {'author': author, 'books': books[:4]})
+    # Fetch the followers count
+    followers_count = FollowAuthor.objects.filter(following=author).count()
+    # Check if the logged-in user is following the author
+    is_following = FollowAuthor.objects.filter(following=author, follower=request.user).exists()
+    return render(request, 'author_profile.html', {
+        'author': author,
+        'books': books[:4],  # Limit to the top 4 books
+        'followers_count': followers_count,
+        'is_following': is_following,
+    })
 
-@login_required(login_url='signin')
+@user_login_required
 def load_more_books(request, pk):
     author = get_object_or_404(Author, pk=pk)
     page = int(request.GET.get('page', 1))
@@ -218,8 +392,7 @@ def load_more_books(request, pk):
     return JsonResponse({'books': books_data, 'has_next': books_page.has_next()})
 
 
-
-@login_required(login_url='signin')
+@user_login_required
 def profile(request):
     if request.method == 'POST':
         user = request.user
@@ -235,8 +408,9 @@ def profile(request):
         cuser.user_location = request.POST.get('location', cuser.user_location)
         
         # Handle profile image update
-        if 'user_image' in request.FILES:
-            cuser.user_image = request.FILES['user_image']
+        image = request.FILES.get('user_image')
+        if image:
+            cuser.user_image = image
         
         user.save()
         cuser.save()
@@ -246,15 +420,23 @@ def profile(request):
     # Get user's reviews
     user_reviews = Review.objects.filter(user_id=request.user).select_related('book_id').order_by('-created_at')
     
+    # Get reading status counts
+    reading_statuses = {
+        'read_count': ReadingStatus.objects.filter(user=request.user, status='read').count(),
+        'reading_count': ReadingStatus.objects.filter(user=request.user, status='reading').count(),
+        'want_to_read_count': ReadingStatus.objects.filter(user=request.user, status='want_to_read').count(),
+    }
+    
     context = {
         'profile': request.user.cuser,
         'user_reviews': user_reviews,
+        'reading_statuses': reading_statuses,
     }
     return render(request, 'profile.html', context)
 
-@login_required(login_url='signin')
+@user_login_required
 def book(request, pk):
-    print(f"Rendering book profile for book ID: {pk}")
+   # print(f"Rendering book profile for book ID: {pk}")
     book = get_object_or_404(Book, pk=pk)
 
     # Get the most recent review
@@ -277,7 +459,7 @@ def book(request, pk):
     return render(request, 'book_profile.html', context)
 
 
-@login_required(login_url='signin')
+@user_login_required
 def reviews_list(request, book_id):
     book = get_object_or_404(Book, pk=book_id)
     reviews = book.reviews.order_by('-created_at')  # Latest first
@@ -302,10 +484,7 @@ def reviews_list(request, book_id):
     })
 
 
-
-
-
-@login_required(login_url='signin')
+@user_login_required
 @csrf_exempt
 def submit_review(request, book_id):
     if request.method == "POST":
@@ -346,11 +525,7 @@ def submit_review(request, book_id):
         return JsonResponse({'success': False, 'message': 'Invalid request method.'}, status=405)
 
 
-import json
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-import pandas as pd
-import os
+
 
 # Load the recommendation model (your function or logic for recommendations)
 from .recommendation_model import content_based_recommendations
@@ -366,7 +541,7 @@ def chatbot(request):
         # Parse user input
         data = json.loads(request.body.decode('utf-8'))
         user_input = data.get('query', '').strip().lower()
-        print(f"User Input: {user_input}")  # Debugging
+       # print(f"User Input: {user_input}")  # Debugging
 
         if not user_input:
             return JsonResponse({"response": "Please provide a book title or author name for recommendations."})
@@ -376,38 +551,61 @@ def chatbot(request):
             (df['Title'].str.lower().str.contains(user_input)) | 
             (df['Author'].str.lower().str.contains(user_input))
         ]
-        print(f"Filtered Books: {filtered_books}")  # Debugging
+        #print(f"Filtered Books: {filtered_books}")  # Debugging
 
         if filtered_books.empty:
             return JsonResponse({"response": f"Sorry, I couldn't find any books matching '{user_input}'."})
 
         # Use the first matching book's ID for recommendations
         book_id = filtered_books.iloc[0]['Book_ID']
-        print(f"Selected Book ID: {book_id}")  # Debugging
+       # print(f"Selected Book ID: {book_id}")  # Debugging
 
         recommendations = content_based_recommendations(book_id=book_id, n=5)
-        print(f"Recommendations: {recommendations}")  # Debugging
-
         recommended_books = recommendations.to_dict(orient='records')
+        
+        # Create a list to store recommendations with database IDs
+        final_recommendations = []
+        
+        for book in recommended_books:
+            # Try to find the corresponding book in your database
+            try:
+                db_book = Book.objects.get(book_name__iexact=book['Title'])
+                logger.info(f"Found match: Dataset title '{book['Title']}' -> DB book ID {db_book.pk}")
+                final_recommendations.append({
+                    'Title': book['Title'],
+                    'Author': book['Author'],
+                    'Genres': book['Genres'],
+                    'Book_ID': db_book.pk,  # Use the database book ID instead of dataset ID
+                    'Image': db_book.image.url if db_book.image else None
+                })
+            except Book.DoesNotExist:
+                logger.warning(f"No match found in database for book: {book['Title']}")
+                continue
+            except Book.MultipleObjectsReturned:
+                # If multiple books found, use the first one
+                db_book = Book.objects.filter(book_name__iexact=book['Title']).first()
+                final_recommendations.append({
+                    'Title': book['Title'],
+                    'Author': book['Author'],
+                    'Genres': book['Genres'],
+                    'Book_ID': db_book.pk,
+                    'Image': db_book.image.url if db_book.image else None
+                })
+
         return JsonResponse({
             "response": f"Here are some book recommendations based on '{filtered_books.iloc[0]['Title']}' by {filtered_books.iloc[0]['Author']}:",
-            "recommendations": recommended_books
+            "recommendations": final_recommendations
         })
 
     return JsonResponse({"response": "Welcome to the Book Recommendation Chatbot!"})
 
 
 
-from django.shortcuts import render
-
 def chatbot_page(request):
     return render(request, 'chatbot.html')
-from django.http import JsonResponse
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404
-from .models import Author, FollowAuthor
 
-@login_required
+
+@user_login_required
 @csrf_exempt  # If using AJAX requests without CSRF token
 def follow_author(request):
     if request.method == "POST":
@@ -433,7 +631,7 @@ def follow_author(request):
 
     return JsonResponse({"success": False, "message": "Invalid request."}, status=400)
 
-@login_required(login_url='signin')
+#@user_login_required
 def api_search(request):
     query = request.GET.get('q', '').strip()
     search_type = request.GET.get('type', 'all')
@@ -442,6 +640,8 @@ def api_search(request):
         return JsonResponse({'results': []})
     
     results = []
+    updated_books = []
+    now = timezone.now()
     
     if search_type in ['all', 'books']:
         # Search books
@@ -450,8 +650,9 @@ def api_search(request):
             Q(author_id__name__icontains=query) |
             Q(genre__icontains=query)
         ).select_related('author_id').distinct()[:5]
-        
+        # Update search_count and created_at for found books
         for book in books:
+           # Book.objects.filter(pk=book.pk).update(search_count=models.F('search_count') + 1, created_at=now)
             results.append({
                 'title': book.book_name,
                 'subtitle': f"by {book.author_id.name} • {book.genre}",
@@ -473,7 +674,8 @@ def api_search(request):
                 'subtitle': author.bio[:100] + '...' if author.bio else 'Author',
                 'image': author.author_image.url,
                 'url': reverse('author', args=[author.pk]),
-                'type': 'author'
+                'type': 'author',
+             
             })
     
     if search_type in ['all', 'genres']:
@@ -491,7 +693,8 @@ def api_search(request):
                     'subtitle': f"{Book.objects.filter(genre__iexact=genre['genre']).count()} books",
                     'image': sample_book.image.url,
                     'url': f"/search?genre={genre['genre']}",
-                    'type': 'genre'
+                    'type': 'genre',
+                  
                 })
     
     # Sort results by relevance (exact matches first)
@@ -502,3 +705,134 @@ def api_search(request):
     ))
     
     return JsonResponse({'results': results[:10]})  # Limit to top 10 results total
+
+def parse_date_manually(date_str):
+    try:
+       # print(f"Parsing date: {date_str}")
+        # Clean the string
+        date_str = date_str.strip().replace('\n', '').replace('  ', ' ')
+        
+        # Split by comma to separate year from month and day
+        main_part, year = date_str.rsplit(',', 1)
+        year = year.strip()
+        #print(f"Year: {year}")
+        # Split the main part to get month and day
+        month, day = main_part.rsplit(' ', 1)
+        month = month.strip()
+        day = day.strip()
+        
+        # Convert month name to number
+        month_dict = {
+            'January': '01', 'February': '02', 'March': '03', 'April': '04',
+            'May': '05', 'June': '06', 'July': '07', 'August': '08',
+            'September': '09', 'October': '10', 'November': '11', 'December': '12'
+        }
+        
+        month_num = month_dict[month]
+        
+        # Format the date as YYYY-MM-DD
+        formatted_date = f"{year}-{month_num}-{day.zfill(2)}"
+        #print(f"Formatted date: {formatted_date}")
+        return formatted_date
+    
+    except Exception as e:
+        #print(f"Error parsing date '{date_str}': {str(e)}")
+        return None
+        
+@user_login_required
+@csrf_exempt
+def update_reading_status(request, book_id):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            status = data.get('status')
+            
+            if not status or status not in [choice[0] for choice in ReadingStatus.STATUS_CHOICES]:
+                return JsonResponse({'success': False, 'message': 'Invalid status'}, status=400)
+            
+            book = get_object_or_404(Book, pk=book_id)
+            user = request.user
+            
+            # Update or create reading status
+            reading_status, created = ReadingStatus.objects.update_or_create(
+                user=user,
+                book=book,
+                defaults={'status': status}
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Status updated to {reading_status.get_status_display()}',
+                'status': reading_status.status
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
+
+@user_login_required
+def get_reading_status(request, book_id):
+    try:
+        book = get_object_or_404(Book, pk=book_id)
+        reading_status = ReadingStatus.objects.filter(user=request.user, book=book).first()
+        
+        return JsonResponse({
+            'success': True,
+            'status': reading_status.status if reading_status else None
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
+@user_login_required
+def reading_list(request, username=None):
+    # If username is provided, show that user's reading list
+    # Otherwise show the logged-in user's reading list
+    if username:
+        target_user = get_object_or_404(User, username=username)
+    else:
+        target_user = request.user
+
+    # Get all reading statuses for the target user
+    reading_statuses = ReadingStatus.objects.filter(user=target_user).select_related('book', 'book__author_id')
+    
+    # Group by status
+    read_books = reading_statuses.filter(status='read')
+    reading_books = reading_statuses.filter(status='reading')
+    want_to_read_books = reading_statuses.filter(status='want_to_read')
+    
+    context = {
+        'read_books': read_books,
+        'reading_books': reading_books,
+        'want_to_read_books': want_to_read_books,
+        'viewed_user': target_user,
+        'is_own_list': target_user == request.user
+    }
+    
+    return render(request, 'reading_list.html', context)
+
+@user_login_required
+def user_profile(request, username):
+    user = get_object_or_404(User, username=username)
+    
+    # Get user's reviews
+    user_reviews = Review.objects.filter(user_id=user).select_related('book_id').order_by('-created_at')
+    
+    # Get reading status counts
+    reading_statuses = {
+        'read_count': ReadingStatus.objects.filter(user=user, status='read').count(),
+        'reading_count': ReadingStatus.objects.filter(user=user, status='reading').count(),
+        'want_to_read_count': ReadingStatus.objects.filter(user=user, status='want_to_read').count(),
+    }
+    
+    context = {
+        'profile': user.cuser,
+        'viewed_user': user,
+        'user_reviews': user_reviews,
+        'reading_statuses': reading_statuses,
+    }
+    return render(request, 'profile.html', context)
+
+
+
+        

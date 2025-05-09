@@ -1,0 +1,132 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}{% if book %}Edit Book{% else %}Add New Book{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .book-form-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    .book-image-preview {
+        max-width: 200px;
+        margin-top: 10px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .form-section {
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .image-upload-wrapper {
+        border: 2px dashed #ccc;
+        padding: 20px;
+        text-align: center;
+        border-radius: 8px;
+        margin-bottom: 15px;
+    }
+    .image-upload-wrapper:hover {
+        border-color: #007bff;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">{% if book %}Edit{% else %}Add New{% endif %} Book</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        {% if book %}
+                        <input type="hidden" name="edit_book" value="1">
+                        <input type="hidden" name="book_id" value="{{ book.book_id }}">
+                        {% endif %}
+
+
+                        <div class="mb-3">
+                            <label for="book_name" class="form-label">Book Name</label>
+                            <input type="text" class="form-control" id="book_name" name="book_name" 
+                                   value="{{ book.book_name|default:'' }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="author" class="form-label">Author</label>
+                            <select class="form-select" id="author" name="author" required>
+                                <option value="" disabled {% if not book %}selected{% endif %}>Select Author</option>
+                                {% for author in authors %}
+                                    <option value="{{ author.pk }}" 
+                                            {% if book and book.author_id.pk == author.pk %}selected{% endif %}>
+                                        {{ author.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="genre" class="form-label">Genre</label>
+                            <input type="text" class="form-control" id="genre" name="genre" 
+                                   value="{{ book.genre|default:'' }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="marketing_link" class="form-label">Marketing Link</label>
+                            <input type="url" class="form-control" id="marketing_link" name="marketing_link" 
+                                   value="{{ book.marketing_link|default:'https://www.rokomari.com/book' }}"
+                                   placeholder="Enter marketing link (e.g., Rokomari)">
+                            <div class="form-text">Link to purchase the book (e.g., Rokomari)</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="image" class="form-label">Book Cover Image</label>
+                            {% if book and book.image %}
+                                <div class="mb-2">
+                                    <img src="{{ book.image.url }}" alt="{{ book.book_name }}" 
+                                         style="max-width: 100px; height: auto;">
+                                </div>
+                            {% endif %}
+                            <input type="file" class="form-control" id="image" name="image" 
+                                   accept="image/*" {% if not book %}required{% endif %}>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'admin_books' %}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                {% if book %}Update{% else %}Create{% endif %} Book
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Form validation
+(function () {
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms).forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault()
+                event.stopPropagation()
+            }
+            form.classList.add('was-validated')
+        }, false)
+    })
+})()
+</script>
+{% endblock %}

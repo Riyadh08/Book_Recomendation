@@ -272,6 +272,17 @@
       padding: 1rem;
     }
   }
+
+  .book-link {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .book-link:hover {
+    color: var(--primary-color);
+    text-decoration: underline;
+  }
 </style>
 {% endblock %}
 
@@ -390,9 +401,10 @@ class ChatBot {
         bookSuggestions = response.recommendations.map(book => ({
           title: book.Title,
           author: book.Author,
-          url: '#', // You can add book URL if available
-          image: book.Image || '/static/images/default-book.jpg', // Default image if not provided
-          genres: book.Genres
+          url: `/book/${book.Book_ID}/`,
+          image: book.Image || '/static/images/default-book.jpg',
+          genres: book.Genres,
+          pk: book.Book_ID
         }));
       }
 
@@ -429,23 +441,27 @@ class ChatBot {
       '<i class="fas fa-robot"></i>' : 
       '<i class="fas fa-user"></i>';
 
-    let bookSuggestionsHtml = '';
-    if (books && books.length > 0) {
-      bookSuggestionsHtml = `
-        <div class="book-suggestions-container">
-          ${books.map(book => `
-            <div class="book-suggestion">
-              <img src="${book.image}" alt="${book.title}" onerror="utils.handleImageError(this)">
-              <div class="book-info">
-                <h4>${book.title}</h4>
-                <p>${book.author}</p>
-                ${book.genres ? `<small class="text-muted">${book.genres}</small>` : ''}
+      let bookSuggestionsHtml = '';
+      if (books && books.length > 0) {
+        bookSuggestionsHtml = `
+          <div class="book-suggestions-container">
+            ${books.map(book => `
+              <div class="book-suggestion">
+                <img src="${book.image}" alt="${book.title}" onerror="utils.handleImageError(this)">
+                <div class="book-info">
+                  <h4>
+                    {% comment %} <a href="/book/${book.pk}/" class="book-link">${book.title}</a> {% endcomment %}
+                    <a href="/book/${book.pk}/" class="book-link" target="_blank" rel="noopener noreferrer">${book.title}</a>
+                  </h4>
+                  <p>${book.author}</p>
+                  ${book.genres ? `<small class="text-muted">${book.genres}</small>` : ''}
+                </div>
               </div>
-            </div>
-          `).join('')}
-        </div>
-      `;
-    }
+            `).join('')}
+          </div>
+        `;
+      }
+      
 
     messageDiv.innerHTML = `
       <div class="message-avatar">${avatar}</div>

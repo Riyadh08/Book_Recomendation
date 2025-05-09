@@ -10,15 +10,17 @@
             <div class="card">
                 <div class="card-body text-center">
                     <img src="{{ profile.user_image.url }}" class="rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
-                    <h4 class="card-title">{{ user.username }}</h4>
-                    <p class="text-muted">Member since {{ user.date_joined|date:"F Y" }}</p>
+                    <h4 class="card-title">{{ viewed_user.username|default:user.username }}</h4>
+                    <p class="text-muted">Member since {{ viewed_user.date_joined|default:user.date_joined|date:"F Y" }}</p>
+                    {% if viewed_user == user %}
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editProfileModal">
                         <i class="fas fa-edit me-2"></i>Edit Profile
                     </button>
+                    {% endif %}
                 </div>
                 <ul class="list-group list-group-flush">
                     <li class="list-group-item">
-                        <i class="fas fa-envelope me-2"></i>{{ user.email }}
+                        <i class="fas fa-envelope me-2"></i>{{ viewed_user.email|default:user.email }}
                     </li>
                     <li class="list-group-item">
                         <i class="fas fa-calendar me-2"></i>{{ profile.user_date_of_birth|date:"F j, Y" }}
@@ -33,8 +35,53 @@
             </div>
         </div>
 
-        <!-- Right Column - Reviews -->
+        <!-- Right Column - Reviews and Reading List -->
         <div class="col-md-8">
+            <!-- Reading List Section -->
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">My Reading List</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-4">
+                        <div class="col-md-4">
+                            <div class="reading-status-box">
+                                <h3>{{ reading_statuses.read_count }}</h3>
+                                <p class="text-muted">Read</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="reading-status-box">
+                                <h3>{{ reading_statuses.reading_count }}</h3>
+                                <p class="text-muted">Currently Reading</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="reading-status-box">
+                                <h3>{{ reading_statuses.want_to_read_count }}</h3>
+                                <p class="text-muted">Want to Read</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                    {% if viewed_user.id == user.id %}
+                        <a href="{% url 'reading_list' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-book me-2"></i>View Full Reading List
+                        </a>
+                    {% else %}
+                        {% if viewed_user and viewed_user.username %}
+                            <a href="{% url 'user_reading_list' username=viewed_user.username %}" class="btn btn-outline-primary">
+                                <i class="fas fa-book me-2"></i>View Full Reading List
+                            </a>
+                        {% endif %}
+                    {% endif %}
+
+                    
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reviews Section -->
             <div class="card">
                 <div class="card-header bg-white">
                     <h5 class="card-title mb-0">My Reviews</h5>
@@ -150,6 +197,25 @@
     }
     .list-group-item:last-child {
         border-bottom: none;
+    }
+    .reading-status-box {
+        padding: 1rem;
+        border-radius: 8px;
+        background-color: #f8f9fa;
+        transition: all 0.3s ease;
+    }
+    .reading-status-box:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .reading-status-box h3 {
+        margin: 0;
+        font-size: 2rem;
+        color: #0d6efd;
+    }
+    .reading-status-box p {
+        margin: 0.5rem 0 0;
+        font-size: 0.9rem;
     }
 </style>
 

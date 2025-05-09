@@ -1,0 +1,39 @@
+{% if not user.is_authenticated %}
+<div class="guest-banner">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <p class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    {{ message|default:"Sign in to access all features including personalized recommendations and reviews." }}
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="{% url 'signin' %}" class="btn btn-light btn-sm me-2">Sign In</a>
+                <a href="{% url 'signup' %}" class="btn btn-primary btn-sm">Sign Up</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .guest-banner {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 1rem 0;
+        z-index: 1000;
+    }
+    
+    .guest-banner p {
+        font-size: 0.9rem;
+    }
+    
+    .guest-banner .btn {
+        padding: 0.375rem 1rem;
+    }
+</style>
+{% endif %} 

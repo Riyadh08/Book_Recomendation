@@ -1,33 +1,51 @@
 {% extends "base.html" %}
 
-{% block title %}Author{% endblock %}
+{% block title %}{{ author.name }}{% endblock %}
 
 {% block body %}
 <div class="container">
     <div class="author-profile">
         <!-- Left Sidebar (Author Image) -->
         <div class="sidebar">
-            <img src="{{ author.author_image.url }}" alt="Author Image">
+            <img src="{{ author.author_image.url }}" alt="Author Image" class="fixed-size-image">
+            {% comment %} <p><strong>Followers:</strong> {{ followers_count }}</p> {% endcomment %}
             <button id="follow-button" class="follow-button"
-                {% if user in author.followers.all %} 
+                {% if is_following %} 
                     style="background-color: #dc3545;" 
                     data-action="unfollow"
                 {% else %} 
                     data-action="follow" 
                 {% endif %}>
-                {% if user in author.followers.all %} Unfollow {% else %} Follow {% endif %}
+                {% if is_following %} Unfollow {% else %} Follow {% endif %}
             </button>
             <form id="csrf-form">{% csrf_token %}</form> <!-- CSRF Token -->
         </div>
 
         <!-- Main Content (Author Information and Books) -->
         <div class="main-content">
-            <div class="section" id="bio">
-                <h2>{{ author.name }}</h2>
-                <p>Born: {{ author.date_of_birth }}</p>
-                <p>Genre: {{ author.genre }}</p>
-                <p>Notable Works: {{ author.notable_works }}</p>
-                <p>{{ author.biography }}</p>
+            <div class="author-info">
+                <h1 class="author-name">{{ author.name }}</h1>
+                
+                <div class="author-details">
+                    {% if author.date_of_birth %}
+                        <p class="author-dates">
+                            <i class="fas fa-birthday-cake me-2"></i>Born: {{ author.date_of_birth|date:"F j, Y" }}
+                        </p>
+                    {% endif %}
+                    
+                    {% if author.date_of_death %}
+                        <p class="author-dates">
+                            <i class="fas fa-cross me-2"></i>Died: {{ author.date_of_death|date:"F j, Y" }}
+                        </p>
+                    {% endif %}
+                    
+                    {% if author.bio %}
+                        <div class="author-bio mt-3">
+                            <h4>Biography</h4>
+                            <p>{{ author.bio }}</p>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="section" id="books">
@@ -55,12 +73,16 @@
 
         if (followButton) {
             followButton.addEventListener("click", function () {
+                {% if not user.is_authenticated %}
+                    // Show sign in message for guest users
+                    alert("Please sign in to follow authors!");
+                    //window.location.href = "{% url 'signin' %}";
+                    return;
+                {% endif %}
+
                 const action = this.getAttribute("data-action");
                 const authorId = "{{ author.pk }}";  
                 const csrftoken = document.querySelector("[name=csrfmiddlewaretoken]").value;
-
-                // Debugging log to check if click event is triggered
-                console.log(`Action: ${action}, Author ID: ${authorId}, CSRF Token: ${csrftoken}`);
 
                 fetch(`/follow-author/`, {
                     method: "POST",
@@ -76,7 +98,6 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Update button text and style based on follow/unfollow action
                         if (action === "follow") {
                             this.textContent = "Unfollow";
                             this.style.backgroundColor = "#dc3545";
@@ -157,7 +178,7 @@
     }
 
     .sidebar {
-        width: 300px;
+        width: 500px;
         padding: 20px;
         box-sizing: border-box;
         background-color: #fff;
@@ -166,9 +187,10 @@
     }
 
     .sidebar img {
-        width: 70%;
-        height: 60%;
+        width: 200px; /* Fixed width */
+        height: 200px; /* Fixed height */
         border-radius: 10px;
+        object-fit: cover; /* Ensure the image covers the area without distortion */
     }
 
     .follow-button {

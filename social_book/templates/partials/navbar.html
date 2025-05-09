@@ -2,8 +2,8 @@
 <nav class="navbar navbar-expand-lg navbar-dark navbar-custom sticky-top">
   <div class="container">
     <!-- Brand -->
-    <a class="navbar-brand d-flex align-items-center" href="/">
-      <i class="fas fa-book-reader me-2"></i>Social Book
+    <a class="navbar-brand d-flex align-items-center" href="{% if user.is_authenticated %}{% url 'index' %}{% else %}{% url 'index' %}?guest=true{% endif %}">
+      <i class="fas fa-book-reader me-2"></i>Pathok Prantor
     </a>
 
     <!-- Mobile Toggle -->
@@ -24,12 +24,12 @@
       <!-- Navigation Links -->
       <ul class="navbar-nav me-auto">
         <li class="nav-item">
-          <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">
+          <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{% if user.is_authenticated %}{% url 'index' %}{% else %}{% url 'index' %}?guest=true{% endif %}">
             <i class="fas fa-home me-2"></i>Home
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link {% if request.path == '/search/' %}active{% endif %}" href="/search">
+          <a class="nav-link {% if request.path == '/trending/' %}active{% endif %}" href="{% url 'trending_searches' %}">
             <i class="fas fa-compass me-2"></i>Discover
           </a>
         </li>
@@ -38,6 +38,19 @@
             <i class="fas fa-robot me-2"></i>Book Bot
           </a>
         </li>
+        {% comment %} <li class="nav-item">
+          {% if user.is_authenticated %}
+            <a class="nav-link {% if '/myadmin/' in request.path %}active{% endif %}" href="/myadmin">
+              <i class="fas fa-shield-alt me-2"></i>Admin Panel
+            </a>
+          {% else %}
+            <a class="nav-link" href="#" onclick="alert('You must be logged in to access the Admin Panel.'); return false;">
+              <i class="fas fa-shield-alt me-2"></i>Admin Panel
+            </a>
+          {% endif %}
+        </li> {% endcomment %}
+        
+
       </ul>
       
       <!-- Search Bar -->
@@ -74,20 +87,33 @@
           </a>
           <ul class="dropdown-menu dropdown-menu-end">
             <li>
-              <a class="dropdown-item" href="{% url 'profile' %}">
+              <a class="dropdown-item" href="{% url 'user_profile' username=user.username %}">
                 <i class="fas fa-user"></i>Profile
               </a>
             </li>
             <li>
-              <a class="dropdown-item" href="#">
+              <a class="dropdown-item" href="{% url 'reading_list' %}">
                 <i class="fas fa-book"></i>My Books
               </a>
             </li>
-            <li>
-              <a class="dropdown-item" href="#">
+            {% comment %} <li>
+              <a class="dropdown-item" href="{% url 'favorites' %} ">
                 <i class="fas fa-heart"></i>Favorites
               </a>
-            </li>
+            </li> {% endcomment %}
+            <li><hr class="dropdown-divider"></li>
+            {% if request.session.is_admin %}
+                <li>
+                    <a class="dropdown-item" href="{% url 'admin_dashboard' %}">
+                        <i class="fas fa-cog"></i> Admin Dashboard
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="{% url 'admin_logout' %}">
+                        <i class="fas fa-sign-out-alt"></i> Exit Admin
+                    </a>
+                </li>
+            {% endif %}
             <li><hr class="dropdown-divider"></li>
             <li>
               <a class="dropdown-item" href="{% url 'logout' %}">
@@ -97,11 +123,6 @@
           </ul>
         </li>
       </ul>
-      {% else %}
-      <div class="auth-buttons">
-        <a href="{% url 'signin' %}" class="btn btn-outline-light">Sign In</a>
-        <a href="{% url 'signup' %}" class="btn btn-light">Sign Up</a>
-      </div>
       {% endif %}
     </div>
   </div>
