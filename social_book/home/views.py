@@ -232,10 +232,6 @@ def logout(request):
         return redirect('index')
 
 
-# @login_required(login_url='signin')
-# def profile(request,pk):
-#     return render(request, 'profile.html')
-
 @user_login_required
 def search(request):
     results = Book.objects.all()
