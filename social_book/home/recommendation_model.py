@@ -43,7 +43,7 @@ tfidf = TfidfVectorizer(
 )
 tfidf_matrix = tfidf.fit_transform(df['Content'])
 
-# Build collaborative filtering model precompution
+# Build collaborative filtering model precompution using matrix factorization
 user_item = df.pivot_table(index='User_ID', columns='Book_ID', values='Rating', fill_value=0)
 user_ids = user_item.index.tolist()
 book_ids = user_item.columns.tolist()

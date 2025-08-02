@@ -24,6 +24,7 @@ urlpatterns = [
     path('book/<int:book_id>/get-reading-status/', views.get_reading_status, name='get_reading_status'),
     path('reading-list/', views.reading_list, name='reading_list'),
     path('reading-list/<str:username>/', views.reading_list, name='user_reading_list'),
+    path('review/<int:review_id>/delete_review/', views.delete_review, name='delete_review'),
     
     # Custom Admin URLs - make sure these are before other patterns
     path('myadmin/', admin_views.admin_login, name='admin_login'),

@@ -1,7 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
@@ -10,14 +9,12 @@
     <title>Sign Up - Social Book</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
-
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             font-family: 'Poppins', sans-serif;
         }
-
         section {
             display: flex;
             justify-content: center;
@@ -29,17 +26,16 @@
             background-position: center;
             animation: animateBg 5s linear infinite;
         }
-
         @keyframes animateBg {
             100% {
                 filter: hue-rotate(360deg);
             }
         }
-
         .login-box {
             position: relative;
             width: 400px;
-            height: 550px;
+            max-height: 95vh;
+            overflow-y: auto;
             background: transparent;
             border: 2px solid rgba(255, 255, 255, 0.5);
             border-radius: 20px;
@@ -47,21 +43,19 @@
             justify-content: center;
             align-items: center;
             backdrop-filter: blur(15px);
+            padding: 30px 0;
         }
-
         h2 {
             font-size: 2em;
             color: #fff;
             text-align: center;
         }
-
         .input-box {
             position: relative;
             width: 310px;
             margin: 20px;
             border-bottom: 2px solid #fff;
         }
-
         .input-box label {
             position: absolute;
             top: 50%;
@@ -72,13 +66,14 @@
             pointer-events: none;
             transition: 0.5s;
         }
-
-        .input-box input:focus~label,
-        .input-box input:valid~label {
+        .input-box input:focus ~ label,
+        .input-box input:valid ~ label,
+        .input-box select:focus ~ label,
+        .input-box select:valid ~ label {
             top: -5px;
         }
-
-        .input-box input {
+        .input-box input,
+        .input-box select {
             width: 100%;
             height: 50px;
             background: transparent;
@@ -88,7 +83,6 @@
             color: #fff;
             padding: 0 35px 0 5px;
         }
-
         .input-box .icon {
             position: absolute;
             right: 8px;
@@ -96,28 +90,24 @@
             font-size: 1.2em;
             line-height: 57px;
         }
-
         .terms {
             margin: -15px 0 15px;
             font-size: 0.9em;
             color: #fff;
             display: flex;
             justify-content: space-between;
+            padding: 0 20px;
         }
-
         .terms label input {
             margin-right: 3px;
         }
-
         .terms a {
             color: #fff;
             text-decoration: none;
         }
-
         .terms a:hover {
             text-decoration: underline;
         }
-
         button {
             width: 100%;
             height: 40px;
@@ -130,24 +120,20 @@
             color: #000;
             font-weight: 500;
         }
-
         .login-link {
             font-size: 0.9em;
             color: #fff;
             text-align: center;
             margin: 25px 0 10px;
         }
-
         .login-link p a {
             color: #fff;
             text-decoration: none;
             font-weight: 600;
         }
-
         .login-link p a:hover {
             text-decoration: underline;
         }
-
         @media (max-width: 360px) {
             .login-box {
                 width: 100%;
@@ -155,23 +141,21 @@
                 border: none;
                 border-radius: 0;
             }
-
             .input-box {
                 width: 290px;
             }
         }
     </style>
 </head>
-
 <body>
     <section>
         <div class="login-box">
-            <form action="{% url 'signup' %}" method="POST">
+            <form action="{% url 'signup' %}" method="POST" enctype="multipart/form-data">
                 {% csrf_token %}
                 <h2>Create Account</h2>
                 <div class="input-box">
                     <span class="icon"><ion-icon name="person"></ion-icon></span>
-                    <input type="text" name="username" required>
+                    <input type="text" name="user_name" required>
                     <label>Username</label>
                 </div>
                 <div class="input-box">
@@ -189,6 +173,31 @@
                     <input type="password" name="password2" required>
                     <label>Confirm Password</label>
                 </div>
+                <div class="input-box">
+                    <span class="icon"><ion-icon name="calendar"></ion-icon></span>
+                    <input type="date" name="user_date_of_birth" required>
+                    <label>Date of Birth</label>
+                </div>
+                <div class="input-box">
+                    <span class="icon"><ion-icon name="transgender-outline"></ion-icon></span>
+                    <select name="user_gender" required>
+                        <option value="" disabled selected hidden></option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <label>Gender</label>
+                </div>
+                <div class="input-box">
+                    <span class="icon"><ion-icon name="location"></ion-icon></span>
+                    <input type="text" name="user_location" required>
+                    <label>Location</label>
+                </div>
+                <div class="input-box">
+                    <span class="icon"><ion-icon name="image"></ion-icon></span>
+                    <input type="file" name="user_image" accept="image/*" required>
+                    <label>Profile Image</label>
+                </div>
                 <div class="terms">
                     <label><input type="checkbox" required> I agree to the <a href="#">Terms & Conditions</a></label>
                 </div>
@@ -203,5 +212,4 @@
     <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
 </body>
-
 </html>

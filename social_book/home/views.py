@@ -101,7 +101,7 @@ def index(request):
     thirty_days_ago = timezone.now() - timedelta(days=30)
 
 # Fetch the 10 most recently added books from the last 30 days
-    new_books = Book.objects.all().order_by('-created_at')[:6]  # Order by newest first and limit to 10
+    new_books = Book.objects.all().order_by('-created_at')[:8]  # Order by newest first and limit to 10
 
     # Get followed authors' recent books
     followed_books = Book.objects.filter(
@@ -159,8 +159,10 @@ def signup(request):
             user_date_of_birth=dob,
             user_gender=gender,
             user_location=location,
-            user_image=image
+            user_image=image,
+            email = email
         )
+        cuser.set_password(password1)
         cuser.save()
 
         # Authenticate and log the user in
@@ -828,6 +830,18 @@ def user_profile(request, username):
         'reading_statuses': reading_statuses,
     }
     return render(request, 'profile.html', context)
+
+@user_login_required
+def delete_review(request, review_id):
+    review = get_object_or_404(Review, pk=review_id)
+    # Only the review author can delete it
+    if review.user_id != request.user:
+        return HttpResponseForbidden("You cannot delete this review.")
+    if request.method == 'POST':
+        book_id = review.book_id.pk
+        review.delete()
+        return redirect('book', pk=book_id)  # Redirect to the book page
+    return render(request, 'confirm_delete.html', {'review': review})
 
 
 
