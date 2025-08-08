@@ -153,43 +153,98 @@ class HybridBookBot:
             self.qa_pipeline = None
 
     def recommend(self, user_id=None, book_id=None, n=5):
-        """Hybrid recommendations combining both approaches"""
-        results = []
-        
-        # Content-based recommendations
-        if book_id is not None:
-            try:
-                content_recs = content_based_recommendations(book_id, n)
-                if not content_recs.empty:
-                    for _, row in content_recs.iterrows():
-                        results.append(f"Content: {row['Title']} by {row['Author']} (Genres: {row['Genres']})")
-            except Exception as e:
-                print(f"Error in content-based recommendation: {e}")
-        
-        # Collaborative filtering recommendations
-        if user_id is not None:
-            try:
-                collab_recs = collaborative_recommendations(user_id, n)
-                if not collab_recs.empty:
-                    for _, row in collab_recs.iterrows():
-                        results.append(f"Collaborative: {row['Title']} by {row['Author']} (Genres: {row['Genres']})")
-            except Exception as e:
-                print(f"Error in collaborative filtering: {e}")
-        
-        # Fallback: Top rated books
-        if not results:
-            top = self.df.groupby('Book_ID').agg({
-                'Rating':'mean', 
-                'Title':'first', 
-                'Author':'first', 
-                'Genres':'first'
-            }).sort_values('Rating', ascending=False).head(n)
+        """Hybrid recommendations with comprehensive fallbacks"""
+        try:
+            results = []
             
-            for _, row in top.iterrows():
-                results.append(f"Popular: {row['Title']} by {row['Author']} (Genres: {row['Genres']})")
-        
-        return "\n".join(results[:n])
+            # Content-based recommendations (if book_id provided)
+            if book_id is not None:
+                try:
+                    content_recs = content_based_recommendations(book_id, n)
+                    if not content_recs.empty:
+                        for _, row in content_recs.iterrows():
+                            results.append({
+                                'Book_ID': row['Book_ID'],
+                                'Title': row['Title'],
+                                'Author': row['Author'],
+                                'Genres': row['Genres'],
+                                'Type': 'content',
+                                'Score': row.get('Similarity_Score', 0)
+                            })
+                except Exception as e:
+                    print(f"Content-based failed: {e}")
+            
+            # Collaborative filtering (if user_id provided)
+            if user_id is not None:
+                try:
+                    collab_recs = collaborative_recommendations(user_id, n)
+                    if not collab_recs.empty:
+                        for _, row in collab_recs.iterrows():
+                            results.append({
+                                'Book_ID': row['Book_ID'],
+                                'Title': row['Title'],
+                                'Author': row['Author'],
+                                'Genres': row['Genres'],
+                                'Type': 'collaborative',
+                                'Score': row.get('Predicted_Rating', 0)
+                            })
+                except Exception as e:
+                    print(f"Collaborative failed: {e}")
+            
+            # If we have results, remove duplicates
+            if results:
+                results_df = pd.DataFrame(results)
+                results_df = results_df.drop_duplicates(subset=['Book_ID'])
+            else:
+                results_df = pd.DataFrame()
+            
+            # Fallback if not enough results
+            if len(results_df) < n:
+                needed = n - len(results_df)
+                try:
+                    fallback = get_fallback_recommendations(needed)
+                    for _, row in fallback.iterrows():
+                        results_df = pd.concat([
+                            results_df,
+                            pd.DataFrame([{
+                                'Book_ID': row['Book_ID'],
+                                'Title': row['Title'],
+                                'Author': row['Author'],
+                                'Genres': row['Genres'],
+                                'Type': 'fallback',
+                                'Score': 0
+                            }])
+                        ], ignore_index=True)
+                except Exception as e:
+                    print(f"Fallback failed: {e}")
+                    # Ultimate fallback - random sample
+                    if len(results_df) < n:
+                        sample = self.df.sample(n=min(5, len(self.df)))[['Book_ID', 'Title', 'Author', 'Genres']]
+                        for _, row in sample.iterrows():
+                            results_df = pd.concat([
+                                results_df,
+                                pd.DataFrame([{
+                                    'Book_ID': row['Book_ID'],
+                                    'Title': row['Title'],
+                                    'Author': row['Author'],
+                                    'Genres': row['Genres'],
+                                    'Type': 'emergency_fallback',
+                                    'Score': 0
+                                }])
+                            ], ignore_index=True)
+            
+            # Sort by type priority and score
+            type_order = {'content': 0, 'collaborative': 1, 'fallback': 2, 'emergency_fallback': 3}
+            results_df['type_rank'] = results_df['Type'].map(type_order)
+            results_df = results_df.sort_values(['type_rank', 'Score'], ascending=[True, False])
+            
+            return results_df.head(n).drop(columns=['type_rank'])
 
+        except Exception as e:
+            print(f"Critical error in recommend(): {e}")
+            # Final safety net
+            return get_fallback_recommendations(n)
+    
     def answer_general(self, question):
         q = question.lower()
         

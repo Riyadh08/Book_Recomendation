@@ -22,6 +22,7 @@ import pandas as pd
 from functools import wraps
 
 from .models import Cuser, Book, Author, Review, FollowAuthor, RecentSearch, ReadingStatus
+from .recommendation_model import bot, df
 
 
 logger = logging.getLogger(__name__)
@@ -547,7 +548,8 @@ def chatbot(request):
         # Search in the dataset
         filtered_books = df[
             (df['Title'].str.lower().str.contains(user_input)) | 
-            (df['Author'].str.lower().str.contains(user_input))
+            (df['Author'].str.lower().str.contains(user_input))|
+            (df['Genres'].str.lower().str.contains(user_input))
         ]
         #print(f"Filtered Books: {filtered_books}")  # Debugging
 
@@ -558,7 +560,15 @@ def chatbot(request):
         book_id = filtered_books.iloc[0]['Book_ID']
        # print(f"Selected Book ID: {book_id}")  # Debugging
 
-        recommendations = content_based_recommendations(book_id=book_id, n=5)
+        # recommendations = content_based_recommendations(book_id=book_id, n=5)
+        if request.user.is_authenticated:
+            recommendations = bot.recommend(user_id=request.user.id, book_id=book_id, n=5)
+        else:
+            recommendations = bot.recommend(book_id=book_id, n=5)
+
+        # recommendations = bot.recommend(user_id=request.user.id, book_id=book_id, n=5)
+        #recommendations = bot.recommend(book_id=book_id, n=5)
+        #recommendations = bot.recommend(book_id=book_id, n=5)
         recommended_books = recommendations.to_dict(orient='records')
         
         # Create a list to store recommendations with database IDs
