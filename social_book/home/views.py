@@ -362,7 +362,10 @@ def author(request, pk):
     # Fetch the followers count
     followers_count = FollowAuthor.objects.filter(following=author).count()
     # Check if the logged-in user is following the author
-    is_following = FollowAuthor.objects.filter(following=author, follower=request.user).exists()
+    if request.user.is_authenticated:
+        is_following = FollowAuthor.objects.filter(following=author, follower=request.user).exists()
+    else:
+        is_following=False    
     return render(request, 'author_profile.html', {
         'author': author,
         'books': books[:4],  # Limit to the top 4 books
@@ -754,29 +757,32 @@ def update_reading_status(request, book_id):
         try:
             data = json.loads(request.body)
             status = data.get('status')
-            
-            if not status or status not in [choice[0] for choice in ReadingStatus.STATUS_CHOICES]:
-                return JsonResponse({'success': False, 'message': 'Invalid status'}, status=400)
-            
+
             book = get_object_or_404(Book, pk=book_id)
             user = request.user
-            
-            # Update or create reading status
+
+            if status == 'remove':
+                ReadingStatus.objects.filter(user=user, book=book).delete()
+                return JsonResponse({'success': True, 'message': 'Book removed from your reading list'})
+
+            if not status or status not in [choice[0] for choice in ReadingStatus.STATUS_CHOICES]:
+                return JsonResponse({'success': False, 'message': 'Invalid status'}, status=400)
+
             reading_status, created = ReadingStatus.objects.update_or_create(
                 user=user,
                 book=book,
                 defaults={'status': status}
             )
-            
+
             return JsonResponse({
                 'success': True,
                 'message': f'Status updated to {reading_status.get_status_display()}',
                 'status': reading_status.status
             })
-            
+
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)}, status=500)
-    
+
     return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
 
 @user_login_required
@@ -841,17 +847,7 @@ def user_profile(request, username):
     }
     return render(request, 'profile.html', context)
 
-@user_login_required
-def delete_review(request, review_id):
-    review = get_object_or_404(Review, pk=review_id)
-    # Only the review author can delete it
-    if review.user_id != request.user:
-        return HttpResponseForbidden("You cannot delete this review.")
-    if request.method == 'POST':
-        book_id = review.book_id.pk
-        review.delete()
-        return redirect('book', pk=book_id)  # Redirect to the book page
-    return render(request, 'confirm_delete.html', {'review': review})
+
 
 
 
